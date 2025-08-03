@@ -1,0 +1,17 @@
+=== XGBoost Training Results ===
+Training samples: 2,326,315
+Feature sample ratio: 0.1
+Training time: 3.07 seconds
+Model parameters: {'objective': 'binary:logistic', 'eval_metric': 'logloss', 'max_depth': 6, 'learning_rate': 0.1, 'n_estimators': 100, 'subsample': 0.8, 'colsample_bytree': 0.8, 'random_state': 42, 'n_jobs': -1}
+
+=== Evaluation Metrics ===
+Mean IoU: 0.1173
+Mean Dice: 0.1803
+Mean Pixel Accuracy: 0.9816
+Precision: 0.6382
+Recall: 0.0964
+F1-Score: 0.1675
+True Positives: 10,788
+False Positives: 6,115
+True Negatives: 5,714,661
+False Negatives: 101,140
