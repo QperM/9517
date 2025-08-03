@@ -2,16 +2,16 @@
 Training epochs: 50
 Learning rate: 0.001
 Batch size: 8
-Final training loss: 0.0200
+Final training loss: 0.0207
 
 === Evaluation Metrics ===
-Mean IoU: 0.3433
-Mean Dice: 0.4967
-Mean Pixel Accuracy: 0.9828
-Precision: 0.5641
-Recall: 0.4587
-F1-Score: 0.5060
-True Positives: 51,339
-False Positives: 39,669
-True Negatives: 5,681,107
-False Negatives: 60,589
+Mean IoU: 0.3230
+Mean Dice: 0.4717
+Mean Pixel Accuracy: 0.9832
+Precision: 0.5940
+Recall: 0.3940
+F1-Score: 0.4738
+True Positives: 44,104
+False Positives: 30,141
+True Negatives: 5,690,635
+False Negatives: 67,824

@@ -375,7 +375,7 @@ def main():
         plt.axis('off')
         
         plt.tight_layout()
-        plt.savefig(f'CNN/detailed_visualization_{i+1}.png', dpi=150, bbox_inches='tight')
+        plt.show()
         plt.close()
     
     # Create comprehensive summary visualization
@@ -483,7 +483,7 @@ def main():
                 f'{value:.3f}', ha='center', va='bottom')
     
     plt.tight_layout()
-    plt.savefig('CNN/comprehensive_evaluation_summary.png', dpi=150, bbox_inches='tight')
+    plt.show()
     plt.close()
     
     # Create confusion matrix heatmap
@@ -509,15 +509,11 @@ def main():
                     fontsize=12)
     
     plt.tight_layout()
-    plt.savefig('CNN/confusion_matrix.png', dpi=150, bbox_inches='tight')
+    plt.show()
     plt.close()
     
     print(f"Enhanced visualizations completed!")
-    print(f"Files saved:")
-    print(f"  - CNN/detailed_visualization_*.png (individual results)")
-    print(f"  - CNN/comprehensive_evaluation_summary.png (summary)")
-    print(f"  - CNN/confusion_matrix.png (confusion matrix)")
-    print(f"  - CNN/comprehensive_evaluation_results.txt (detailed metrics)")
+    print(f"Results saved to: CNN/comprehensive_evaluation_results.txt")
 
 if __name__ == '__main__':
     main() 
