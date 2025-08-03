@@ -1,0 +1,23 @@
+=== Improved NIR-Guided Attention Fusion UNet Training Results ===
+Training epochs: 50
+Learning rate: 0.001
+Batch size: 4
+Final training loss: 0.4068
+
+=== Model Improvements ===
+1. Reduced attention modules from 4 to 2 levels
+2. Added Cross-Modal Feature Calibration
+3. Combined BCE + IoU Loss
+4. Selective attention at levels 2 and 4 only
+
+=== Evaluation Metrics ===
+Mean IoU: 0.4048
+Mean Dice: 0.5579
+Mean Pixel Accuracy: 0.9858
+Precision: 0.7064
+Recall: 0.4419
+F1-Score: 0.5437
+True Positives: 49,457
+False Positives: 20,558
+True Negatives: 5,700,218
+False Negatives: 62,471

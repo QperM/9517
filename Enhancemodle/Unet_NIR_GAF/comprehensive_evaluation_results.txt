@@ -1,0 +1,175 @@
+NIR-Guided Attention Fusion UNet - Comprehensive Evaluation Results
+================================================================================
+
+1. BASIC INFORMATION
+------------------------------
+Number of test images: 89
+Image size: 256x256 pixels
+Model parameters: 8,918,093
+Input channels: RGB (3) + NIR (4) = 7 total
+Average inference time: 0.0152 seconds per image
+
+2. SEGMENTATION METRICS
+------------------------------
+IoU (Intersection over Union):
+  Mean IoU: 0.4048 ± 0.1604
+  Min IoU: 0.0011
+  Max IoU: 1.0000
+  Median IoU: 0.4084
+
+Dice Coefficient (F1 Score):
+  Mean Dice: 0.5579
+  Min Dice: 0.0022
+  Max Dice: 1.0000
+
+Pixel Accuracy:
+  Mean Pixel Accuracy: 0.9858
+  Min Pixel Accuracy: 0.8821
+  Max Pixel Accuracy: 1.0000
+
+3. CLASSIFICATION METRICS (Dead Tree Class)
+----------------------------------------
+Precision: 0.7064
+Recall: 0.4418
+F1-Score: 0.5436
+
+Confusion Matrix:
+  True Positives (TP): 49,453
+  False Positives (FP): 20,556
+  True Negatives (TN): 5,700,220
+  False Negatives (FN): 62,475
+
+4. PERFORMANCE CATEGORIES
+------------------------------
+Excellent (IoU ≥ 0.8): 2 images (2.2%)
+Good (0.6 ≤ IoU < 0.8): 7 images (7.9%)
+Fair (0.4 ≤ IoU < 0.6): 36 images (40.4%)
+Poor (IoU < 0.4): 44 images (49.4%)
+
+5. INDIVIDUAL IMAGE RESULTS
+------------------------------
+Image	IoU		Dice		Pixel_Acc
+--------------------------------------------------
+1	0.4620		0.6320		0.9918
+2	0.4462		0.6171		0.9947
+3	0.2465		0.3955		0.9884
+4	0.5691		0.7254		0.9758
+5	0.4270		0.5984		0.9969
+6	0.4717		0.6410		0.9838
+7	0.2365		0.3825		0.9901
+8	0.3556		0.5247		0.9907
+9	0.3820		0.5528		0.9956
+10	0.3655		0.5353		0.9948
+11	0.6036		0.7528		0.9778
+12	0.4261		0.5976		0.9884
+13	0.6047		0.7537		0.9898
+14	0.3440		0.5119		0.9919
+15	0.5216		0.6856		0.9902
+16	0.1954		0.3270		0.9698
+17	0.4086		0.5801		0.9265
+18	0.4113		0.5829		0.9949
+19	0.3484		0.5168		0.9908
+20	0.4123		0.5838		0.9864
+21	0.8247		0.9040		0.9992
+22	0.3100		0.4733		0.9910
+23	0.4326		0.6040		0.9954
+24	0.4111		0.5827		0.9911
+25	0.6039		0.7530		0.9904
+26	0.4084		0.5799		0.9866
+27	0.4712		0.6405		0.9951
+28	0.3327		0.4992		0.9900
+29	0.3425		0.5103		0.9818
+30	0.4533		0.6239		0.9981
+31	0.5511		0.7106		0.9869
+32	0.1971		0.3294		0.9837
+33	0.7588		0.8629		0.9981
+34	0.4677		0.6373		0.9964
+35	0.1746		0.2973		0.9818
+36	0.4087		0.5802		0.9858
+37	0.3390		0.5064		0.9917
+38	0.3223		0.4875		0.9882
+39	0.3626		0.5323		0.9973
+40	0.5539		0.7129		0.9788
+41	0.1168		0.2092		0.9971
+42	0.5368		0.6986		0.9919
+43	0.0011		0.0022		0.9725
+44	0.1051		0.1902		0.9949
+45	0.3623		0.5319		0.9896
+46	0.2408		0.3881		0.9831
+47	0.3042		0.4665		0.9859
+48	0.2966		0.4575		0.9975
+49	1.0000		1.0000		1.0000
+50	0.5316		0.6942		0.9941
+51	0.2941		0.4545		0.9871
+52	0.5426		0.7034		0.9954
+53	0.4526		0.6232		0.9944
+54	0.3858		0.5568		0.9845
+55	0.6985		0.8225		0.9991
+56	0.3590		0.5284		0.9751
+57	0.6181		0.7639		0.9975
+58	0.4425		0.6135		0.9956
+59	0.5013		0.6678		0.9886
+60	0.3781		0.5487		0.9814
+61	0.3821		0.5529		0.9823
+62	0.4334		0.6047		0.9931
+63	0.0891		0.1637		0.9735
+64	0.3601		0.5295		0.9905
+65	0.3235		0.4889		0.9838
+66	0.4102		0.5818		0.9774
+67	0.4410		0.6121		0.9879
+68	0.1795		0.3044		0.9648
+69	0.4692		0.6387		0.9909
+70	0.4873		0.6553		0.9960
+71	0.3729		0.5432		0.9812
+72	0.3776		0.5482		0.9945
+73	0.3207		0.4857		0.9844
+74	0.7368		0.8485		0.9996
+75	0.4886		0.6565		0.9938
+76	0.0944		0.1725		0.8821
+77	0.3238		0.4892		0.9910
+78	0.5823		0.7360		0.9773
+79	0.5229		0.6867		0.9816
+80	0.2841		0.4425		0.9530
+81	0.3264		0.4922		0.9164
+82	0.3650		0.5348		0.9908
+83	0.4496		0.6203		0.9827
+84	0.5336		0.6959		0.9945
+85	0.2161		0.3554		0.9722
+86	0.3209		0.4859		0.9942
+87	0.4332		0.6045		0.9944
+88	0.2053		0.3406		0.9922
+89	0.3633		0.5330		0.9950
+
+6. EFFICIENCY ANALYSIS
+------------------------------
+Model Parameters: 8,918,093
+Input Complexity: Dual input (RGB + NIR)
+Attention Mechanisms: 4 NIR-guided attention modules
+Inference Time: 0.0152 seconds per image
+Real-time Performance: ✓ (< 2s requirement)
+
+7. MODEL ARCHITECTURE ANALYSIS
+------------------------------
+Architecture: NIR-Guided Attention Fusion UNet
+RGB Encoder: 4 levels (32->64->128->256 channels)
+NIR Encoder: 4 levels (32->64->128->256 channels)
+Attention Modules: 4 NIR-guided attention layers
+Decoder: 4 levels with skip connections
+Fusion Strategy: NIR-guided attention mechanism
+
+8. FAILURE ANALYSIS
+------------------------------
+Worst performing images (lowest IoU):
+  1. Image 43: IoU = 0.0011
+  2. Image 63: IoU = 0.0891
+  3. Image 76: IoU = 0.0944
+  4. Image 44: IoU = 0.1051
+  5. Image 41: IoU = 0.1168
+
+9. SUMMARY
+------------------------------
+Overall Performance: Fair
+Primary Metric (Mean IoU): 0.4048
+Balanced Metric (F1-Score): 0.5436
+Model Innovation: NIR-Guided Attention Fusion
+Efficiency: Satisfactory
