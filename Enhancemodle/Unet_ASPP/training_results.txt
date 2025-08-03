@@ -1,0 +1,17 @@
+=== UNet+ASPP Training Results ===
+Training epochs: 50
+Learning rate: 0.001
+Batch size: 8
+Final training loss: 0.0358
+
+=== Evaluation Metrics ===
+Mean IoU: 0.3662
+Mean Dice: 0.5116
+Mean Pixel Accuracy: 0.9854
+Precision: 0.7259
+Recall: 0.3858
+F1-Score: 0.5039
+True Positives: 43,186
+False Positives: 16,308
+True Negatives: 5,704,468
+False Negatives: 68,742

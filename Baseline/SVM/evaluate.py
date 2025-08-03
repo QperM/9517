@@ -2,10 +2,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 import os
 import cv2
-import torch
 import time
-from sklearn.metrics import confusion_matrix, precision_recall_fscore_support
-from unet_pipeline import UNet, compute_iou
+import joblib
+from sklearn.metrics import confusion_matrix
+from svm_pipeline_simple import compute_iou, predict_image_svm_simple
 
 def compute_dice_coefficient(y_true, y_pred):
     """Compute Dice coefficient (F1 score for segmentation)"""
@@ -43,30 +43,30 @@ def compute_classification_metrics(y_true, y_pred):
         'fn': fn
     }
 
-def measure_inference_time(model, test_data, device, num_runs=10):
+def measure_inference_time(model, scaler, test_data, num_runs=5):
     """Measure average inference time per image"""
-    model.eval()
     times = []
     
-    with torch.no_grad():
-        for _ in range(num_runs):
-            start_time = time.time()
-            for i in range(len(test_data)):
-                img = torch.tensor(test_data[i:i+1].transpose(0, 3, 1, 2), dtype=torch.float32).to(device)
-                _ = model(img)
-            end_time = time.time()
-            times.append(end_time - start_time)
+    for _ in range(num_runs):
+        start_time = time.time()
+        for i in range(len(test_data)):
+            _ = predict_image_svm_simple(model, scaler, test_data[i])
+        end_time = time.time()
+        times.append(end_time - start_time)
     
     avg_time_per_image = np.mean(times) / len(test_data)
     return avg_time_per_image
 
 def count_model_parameters(model):
-    """Count total number of parameters"""
-    return sum(p.numel() for p in model.parameters())
+    """Count total number of support vectors for SVM"""
+    # For SVM, we count support vectors as a proxy for model complexity
+    n_support_vectors = model.n_support_.sum()
+    n_features = model.n_features_in_
+    return n_support_vectors * n_features
 
 def main():
-    """Evaluate UNet model performance with comprehensive metrics"""
-    print("Evaluating UNet Forest Segmentation Model...")
+    """Evaluate SVM model performance with comprehensive metrics"""
+    print("Evaluating SVM Forest Segmentation Model...")
     
     # Load test data and predictions - regenerate since not saved
     print("Regenerating test data and predictions...")
@@ -101,35 +101,30 @@ def main():
     X_test = np.stack([read_image(p) for p in test_imgs])
     y_test = np.stack([read_mask(p) for p in test_masks])
     
-    # Load model and generate predictions
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    model = UNet(n_channels=3, n_classes=1, bilinear=False).to(device)
+    # Load model and scaler
+    model_path = 'Baseline/SVM/svm_model.pkl'
+    scaler_path = 'Baseline/SVM/svm_scaler.pkl'
     
-    # Load model weights
-    model_path = 'Baseline/base_model_unet/unet_model.pth'
-    if os.path.exists(model_path):
-        model.load_state_dict(torch.load(model_path, map_location=device))
-        print("Model weights loaded")
+    if os.path.exists(model_path) and os.path.exists(scaler_path):
+        svm_model = joblib.load(model_path)
+        scaler = joblib.load(scaler_path)
+        print("Model and scaler loaded")
     else:
-        print("Warning: Model weights not found. Please run training first.")
+        print("Warning: Model files not found. Please run training first.")
         return
     
     # Generate predictions
     print('Generating predictions...')
-    model.eval()
     predictions = []
     
-    with torch.no_grad():
-        for i in range(len(X_test)):
-            img = torch.tensor(X_test[i:i+1].transpose(0, 3, 1, 2), dtype=torch.float32).to(device)
-            pred = model(img)
-            pred = pred.cpu().numpy()[0, 0]  # Remove batch and channel dimensions
-            predictions.append(pred)
+    for i in range(len(X_test)):
+        pred_mask = predict_image_svm_simple(svm_model, scaler, X_test[i])
+        predictions.append(pred_mask)
     
     y_pred = np.array(predictions)
     
     # Convert predictions to binary
-    y_pred_bin = (y_pred > 0.5).astype(np.uint8)
+    y_pred_bin = y_pred.astype(np.uint8)
     
     # 1. Basic Segmentation Metrics
     print("Computing segmentation metrics...")
@@ -161,29 +156,21 @@ def main():
     
     # 3. Efficiency Metrics
     print("Computing efficiency metrics...")
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    model = UNet(n_channels=3, n_classes=1, bilinear=False).to(device)
-    
-    # Load model weights if available
-    model_path = 'Baseline/base_model_unet/unet_model.pth'
-    if os.path.exists(model_path):
-        model.load_state_dict(torch.load(model_path, map_location=device))
-        print("Model weights loaded for inference time measurement")
     
     # Measure inference time
     try:
-        inference_time = measure_inference_time(model, y_test, device)
+        inference_time = measure_inference_time(svm_model, scaler, X_test)
     except Exception as e:
         print(f"Could not measure inference time: {e}")
         inference_time = None
     
-    # Count parameters
-    num_params = count_model_parameters(model)
+    # Count parameters (support vectors)
+    num_params = count_model_parameters(svm_model)
     
     # 4. Save comprehensive results
     print("Saving comprehensive evaluation results...")
-    with open('Baseline/base_model_unet/comprehensive_evaluation_results.txt', 'w', encoding='utf-8') as f:
-        f.write("UNet Forest Segmentation Model - Comprehensive Evaluation Results\n")
+    with open('Baseline/SVM/comprehensive_evaluation_results.txt', 'w', encoding='utf-8') as f:
+        f.write("SVM Forest Segmentation Model - Comprehensive Evaluation Results\n")
         f.write("=" * 80 + "\n\n")
         
         # Basic Information
@@ -191,7 +178,9 @@ def main():
         f.write("-" * 30 + "\n")
         f.write(f"Number of test images: {len(y_test)}\n")
         f.write(f"Image size: {y_test.shape[1]}x{y_test.shape[2]} pixels\n")
-        f.write(f"Model parameters: {num_params:,}\n")
+        f.write(f"Model parameters (support vectors): {num_params:,}\n")
+        f.write(f"Number of support vectors: {svm_model.n_support_.sum():,}\n")
+        f.write(f"Number of features: {svm_model.n_features_in_:,}\n")
         if inference_time:
             f.write(f"Average inference time: {inference_time:.4f} seconds per image\n")
         f.write("\n")
@@ -253,7 +242,9 @@ def main():
         # Efficiency Analysis
         f.write("6. EFFICIENCY ANALYSIS\n")
         f.write("-" * 30 + "\n")
-        f.write(f"Model Parameters: {num_params:,}\n")
+        f.write(f"Model Parameters (Support Vectors): {num_params:,}\n")
+        f.write(f"Number of Support Vectors: {svm_model.n_support_.sum():,}\n")
+        f.write(f"Number of Features: {svm_model.n_features_in_:,}\n")
         if inference_time:
             f.write(f"Inference Time: {inference_time:.4f} seconds per image\n")
             f.write(f"Real-time Performance: {'✓' if inference_time < 2.0 else '✗'} (< 2s requirement)\n")
@@ -278,7 +269,7 @@ def main():
             f.write(f"Efficiency: {'Satisfactory' if inference_time < 2.0 else 'Needs Improvement'}\n")
     
     print(f"Comprehensive evaluation completed!")
-    print(f"Results saved to: Baseline/base_model_unet/comprehensive_evaluation_results.txt")
+    print(f"Results saved to: Baseline/SVM/comprehensive_evaluation_results.txt")
     
     # Print summary to console
     print(f"\n=== EVALUATION SUMMARY ===")
@@ -287,7 +278,8 @@ def main():
     print(f"Precision: {class_metrics['precision']:.4f}")
     print(f"Recall: {class_metrics['recall']:.4f}")
     print(f"F1-Score: {class_metrics['f1_score']:.4f}")
-    print(f"Model Parameters: {num_params:,}")
+    print(f"Model Parameters (Support Vectors): {num_params:,}")
+    print(f"Number of Support Vectors: {svm_model.n_support_.sum():,}")
     if inference_time:
         print(f"Inference Time: {inference_time:.4f}s per image")
     
@@ -295,7 +287,7 @@ def main():
     print("Generating enhanced visualizations...")
     
     # Load test image paths
-    test_imgs_txt = 'Baseline/base_model_unet/test_imgs.txt'
+    test_imgs_txt = 'Baseline/SVM/test_imgs.txt'
     test_imgs = []
     if os.path.exists(test_imgs_txt):
         with open(test_imgs_txt, 'r') as f:
@@ -342,11 +334,11 @@ def main():
         plt.title(f'Prediction (Binary)\nDice: {dice_scores[i]:.3f}')
         plt.axis('off')
         
-        # Predicted mask (probability)
+        # Predicted mask (probability-like)
         plt.subplot(1, 5, 4)
         plt.imshow(y_pred[i], cmap='viridis')
         plt.colorbar()
-        plt.title('Prediction (Probability)')
+        plt.title('Prediction (SVM Output)')
         plt.axis('off')
         
         # Error visualization
@@ -513,7 +505,7 @@ def main():
     plt.close()
     
     print(f"Enhanced visualizations completed!")
-    print(f"Results saved to: Baseline/base_model_unet/comprehensive_evaluation_results.txt")
+    print(f"Results saved to: Baseline/SVM/comprehensive_evaluation_results.txt")
 
 if __name__ == '__main__':
     main() 

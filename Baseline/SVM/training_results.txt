@@ -1,0 +1,18 @@
+=== SVM Training Results ===
+Training epochs: 50
+Learning rate: 0.001
+Kernel: Linear
+C parameter: 1.0
+Training samples: 22,720
+
+=== Evaluation Metrics ===
+Mean IoU: 0.0112
+Mean Dice: 0.0112
+Mean Pixel Accuracy: 0.9808
+Precision: 0.0000
+Recall: 0.0000
+F1-Score: 0.0000
+True Positives: 0
+False Positives: 0
+True Negatives: 5,720,776
+False Negatives: 111,928

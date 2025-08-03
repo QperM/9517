@@ -5,7 +5,7 @@ import cv2
 import torch
 import time
 from sklearn.metrics import confusion_matrix, precision_recall_fscore_support
-from unet_pipeline import UNet, compute_iou
+from unet_aspp_pipeline import UNetASPP, compute_iou
 
 def compute_dice_coefficient(y_true, y_pred):
     """Compute Dice coefficient (F1 score for segmentation)"""
@@ -65,8 +65,8 @@ def count_model_parameters(model):
     return sum(p.numel() for p in model.parameters())
 
 def main():
-    """Evaluate UNet model performance with comprehensive metrics"""
-    print("Evaluating UNet Forest Segmentation Model...")
+    """Evaluate UNet+ASPP model performance with comprehensive metrics"""
+    print("Evaluating UNet+ASPP Forest Segmentation Model...")
     
     # Load test data and predictions - regenerate since not saved
     print("Regenerating test data and predictions...")
@@ -103,10 +103,10 @@ def main():
     
     # Load model and generate predictions
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    model = UNet(n_channels=3, n_classes=1, bilinear=False).to(device)
+    model = UNetASPP(n_channels=3, n_classes=1, bilinear=False).to(device)
     
     # Load model weights
-    model_path = 'Baseline/base_model_unet/unet_model.pth'
+    model_path = 'Enhancemodle/Unet_ASPP/unet_aspp_model.pth'
     if os.path.exists(model_path):
         model.load_state_dict(torch.load(model_path, map_location=device))
         print("Model weights loaded")
@@ -162,10 +162,10 @@ def main():
     # 3. Efficiency Metrics
     print("Computing efficiency metrics...")
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    model = UNet(n_channels=3, n_classes=1, bilinear=False).to(device)
+    model = UNetASPP(n_channels=3, n_classes=1, bilinear=False).to(device)
     
     # Load model weights if available
-    model_path = 'Baseline/base_model_unet/unet_model.pth'
+    model_path = 'Enhancemodle/Unet_ASPP/unet_aspp_model.pth'
     if os.path.exists(model_path):
         model.load_state_dict(torch.load(model_path, map_location=device))
         print("Model weights loaded for inference time measurement")
@@ -182,8 +182,8 @@ def main():
     
     # 4. Save comprehensive results
     print("Saving comprehensive evaluation results...")
-    with open('Baseline/base_model_unet/comprehensive_evaluation_results.txt', 'w', encoding='utf-8') as f:
-        f.write("UNet Forest Segmentation Model - Comprehensive Evaluation Results\n")
+    with open('Enhancemodle/Unet_ASPP/comprehensive_evaluation_results.txt', 'w', encoding='utf-8') as f:
+        f.write("UNet+ASPP Forest Segmentation Model - Comprehensive Evaluation Results\n")
         f.write("=" * 80 + "\n\n")
         
         # Basic Information
@@ -278,7 +278,7 @@ def main():
             f.write(f"Efficiency: {'Satisfactory' if inference_time < 2.0 else 'Needs Improvement'}\n")
     
     print(f"Comprehensive evaluation completed!")
-    print(f"Results saved to: Baseline/base_model_unet/comprehensive_evaluation_results.txt")
+    print(f"Results saved to: Enhancemodle/Unet_ASPP/comprehensive_evaluation_results.txt")
     
     # Print summary to console
     print(f"\n=== EVALUATION SUMMARY ===")
@@ -295,7 +295,7 @@ def main():
     print("Generating enhanced visualizations...")
     
     # Load test image paths
-    test_imgs_txt = 'Baseline/base_model_unet/test_imgs.txt'
+    test_imgs_txt = 'Enhancemodle/Unet_ASPP/test_imgs.txt'
     test_imgs = []
     if os.path.exists(test_imgs_txt):
         with open(test_imgs_txt, 'r') as f:
@@ -513,7 +513,7 @@ def main():
     plt.close()
     
     print(f"Enhanced visualizations completed!")
-    print(f"Results saved to: Baseline/base_model_unet/comprehensive_evaluation_results.txt")
+    print(f"Results saved to: Enhancemodle/Unet_ASPP/comprehensive_evaluation_results.txt")
 
 if __name__ == '__main__':
     main() 

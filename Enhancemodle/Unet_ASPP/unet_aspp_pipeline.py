@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 # Parameters
 IMAGE_DIR = 'USA_segmentation/NRG_images'
 MASK_DIR = 'USA_segmentation/masks'
-SAVE_DIR = 'Baseline/base_model_unet'
+SAVE_DIR = 'Enhancemodle/Unet_ASPP'
 IMG_SIZE = 256
 TRAIN_SPLIT = 0.8
 BATCH_SIZE = 8
@@ -37,7 +37,62 @@ def read_mask(path):
     mask = cv2.resize(mask, (IMG_SIZE, IMG_SIZE), interpolation=cv2.INTER_NEAREST)
     return (mask > 127).astype(np.uint8)
 
-# UNet Architecture
+# ASPP Module
+class ASPP(nn.Module):
+    """Atrous Spatial Pyramid Pooling module"""
+    def __init__(self, in_channels, out_channels=256):
+        super(ASPP, self).__init__()
+        
+        # 1x1 convolution
+        self.conv1 = nn.Conv2d(in_channels, out_channels, 1, bias=False)
+        self.bn1 = nn.BatchNorm2d(out_channels)
+        
+        # 3x3 convolutions with different dilation rates
+        self.conv2 = nn.Conv2d(in_channels, out_channels, 3, padding=6, dilation=6, bias=False)
+        self.bn2 = nn.BatchNorm2d(out_channels)
+        
+        self.conv3 = nn.Conv2d(in_channels, out_channels, 3, padding=12, dilation=12, bias=False)
+        self.bn3 = nn.BatchNorm2d(out_channels)
+        
+        self.conv4 = nn.Conv2d(in_channels, out_channels, 3, padding=18, dilation=18, bias=False)
+        self.bn4 = nn.BatchNorm2d(out_channels)
+        
+        # Global average pooling
+        self.pool = nn.AdaptiveAvgPool2d(1)
+        self.conv5 = nn.Conv2d(in_channels, out_channels, 1, bias=False)
+        self.bn5 = nn.BatchNorm2d(out_channels)
+        
+        # Final 1x1 convolution
+        self.conv_out = nn.Conv2d(out_channels * 5, out_channels, 1, bias=False)
+        self.bn_out = nn.BatchNorm2d(out_channels)
+        
+        self.relu = nn.ReLU(inplace=True)
+        self.dropout = nn.Dropout(0.5)
+        
+    def forward(self, x):
+        size = x.size()
+        
+        # 1x1 convolution
+        conv1 = self.relu(self.bn1(self.conv1(x)))
+        
+        # 3x3 convolutions with different dilation rates
+        conv2 = self.relu(self.bn2(self.conv2(x)))
+        conv3 = self.relu(self.bn3(self.conv3(x)))
+        conv4 = self.relu(self.bn4(self.conv4(x)))
+        
+        # Global average pooling
+        pool = self.pool(x)
+        pool = self.relu(self.bn5(self.conv5(pool)))
+        pool = nn.functional.interpolate(pool, size=size[2:], mode='bilinear', align_corners=True)
+        
+        # Concatenate all features
+        x = torch.cat([conv1, conv2, conv3, conv4, pool], dim=1)
+        x = self.relu(self.bn_out(self.conv_out(x)))
+        x = self.dropout(x)
+        
+        return x
+
+# Enhanced UNet Architecture with ASPP
 class DoubleConv(nn.Module):
     """(convolution => [BN] => ReLU) * 2"""
     def __init__(self, in_channels, out_channels, mid_channels=None):
@@ -98,35 +153,60 @@ class OutConv(nn.Module):
     def forward(self, x):
         return self.conv(x)
 
-class UNet(nn.Module):
+class UNetASPP(nn.Module):
     def __init__(self, n_channels=3, n_classes=1, bilinear=False):
-        super(UNet, self).__init__()
+        super(UNetASPP, self).__init__()
         self.n_channels = n_channels
         self.n_classes = n_classes
         self.bilinear = bilinear
 
-        self.inc = (DoubleConv(n_channels, 64))
-        self.down1 = (Down(64, 128))
-        self.down2 = (Down(128, 256))
-        self.down3 = (Down(256, 512))
+        # Encoder
+        self.inc = DoubleConv(n_channels, 64)
+        self.down1 = Down(64, 128)
+        self.down2 = Down(128, 256)
+        self.down3 = Down(256, 512)
         factor = 2 if bilinear else 1
-        self.down4 = (Down(512, 1024 // factor))
-        self.up1 = (Up(1024, 512 // factor, bilinear))
-        self.up2 = (Up(512, 256 // factor, bilinear))
-        self.up3 = (Up(256, 128 // factor, bilinear))
-        self.up4 = (Up(128, 64, bilinear))
-        self.outc = (OutConv(64, n_classes))
+        self.down4 = Down(512, 1024 // factor)
+        
+        # ASPP module at the bottleneck
+        self.aspp = ASPP(1024 // factor, 256)
+        
+        # Decoder - simplified approach
+        self.up1 = DoubleConv(256 + 512, 512)
+        self.up2 = DoubleConv(512 + 256, 256)
+        self.up3 = DoubleConv(256 + 128, 128)
+        self.up4 = DoubleConv(128 + 64, 64)
+        self.outc = OutConv(64, n_classes)
 
     def forward(self, x):
+        # Encoder path
         x1 = self.inc(x)
         x2 = self.down1(x1)
         x3 = self.down2(x2)
         x4 = self.down3(x3)
         x5 = self.down4(x4)
-        x = self.up1(x5, x4)
-        x = self.up2(x, x3)
-        x = self.up3(x, x2)
-        x = self.up4(x, x1)
+        
+        # Apply ASPP at bottleneck
+        x5 = self.aspp(x5)
+        
+        # Decoder path with skip connections
+        # Upsample x5 to match x4 size and concatenate
+        x5_up = nn.functional.interpolate(x5, size=x4.shape[2:], mode='bilinear', align_corners=True)
+        x = self.up1(torch.cat([x5_up, x4], dim=1))
+        
+        # Upsample x to match x3 size and concatenate
+        x_up = nn.functional.interpolate(x, size=x3.shape[2:], mode='bilinear', align_corners=True)
+        x = self.up2(torch.cat([x_up, x3], dim=1))
+        
+        # Upsample x to match x2 size and concatenate
+        x_up = nn.functional.interpolate(x, size=x2.shape[2:], mode='bilinear', align_corners=True)
+        x = self.up3(torch.cat([x_up, x2], dim=1))
+        
+        # Upsample x to match x1 size and concatenate
+        x_up = nn.functional.interpolate(x, size=x1.shape[2:], mode='bilinear', align_corners=True)
+        x = self.up4(torch.cat([x_up, x1], dim=1))
+        
+        # Final output
         logits = self.outc(x)
         return torch.sigmoid(logits)
 
@@ -192,7 +272,7 @@ def compute_classification_metrics(y_true, y_pred):
     }
 
 def main():
-    print("Starting UNet Forest Segmentation Pipeline...")
+    print("Starting UNet+ASPP Forest Segmentation Pipeline...")
     
     # 1. Load and split data
     print("Loading image files...")
@@ -233,7 +313,7 @@ def main():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f'Using device: {device}')
     
-    model = UNet(n_channels=3, n_classes=1, bilinear=False).to(device)
+    model = UNetASPP(n_channels=3, n_classes=1, bilinear=False).to(device)
     criterion = nn.BCELoss()
     optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
     
@@ -264,7 +344,7 @@ def main():
             print(f'Epoch {epoch+1}/{EPOCHS}, Loss: {avg_loss:.4f}')
     
     # 6. Save model
-    torch.save(model.state_dict(), os.path.join(SAVE_DIR, 'unet_model.pth'))
+    torch.save(model.state_dict(), os.path.join(SAVE_DIR, 'unet_aspp_model.pth'))
     print('Model saved!')
     
     # 7. Enhanced Evaluation
@@ -313,7 +393,7 @@ def main():
     
     # Save comprehensive results
     with open(os.path.join(SAVE_DIR, 'training_results.txt'), 'w') as f:
-        f.write(f'=== UNet Training Results ===\n')
+        f.write(f'=== UNet+ASPP Training Results ===\n')
         f.write(f'Training epochs: {EPOCHS}\n')
         f.write(f'Learning rate: {LEARNING_RATE}\n')
         f.write(f'Batch size: {BATCH_SIZE}\n')
@@ -334,7 +414,7 @@ def main():
     # Plot training loss
     plt.figure(figsize=(10, 6))
     plt.plot(train_losses)
-    plt.title('Training Loss')
+    plt.title('UNet+ASPP Training Loss')
     plt.xlabel('Epoch')
     plt.ylabel('Loss')
     plt.savefig(os.path.join(SAVE_DIR, 'training_loss.png'))

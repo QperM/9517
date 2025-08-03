@@ -95,7 +95,6 @@ def main():
     
     # Generate predictions
     print('Generating predictions...')
-    model.eval()
     predictions = []
     
     for img in tqdm(X_test_imgs):
@@ -354,7 +353,7 @@ def main():
         # Ground truth mask
         plt.subplot(1, 5, 2)
         plt.imshow(y_test[i], cmap='gray')
-        plt.title(f'Ground Truth\nIoU: {iou_scores[i]:.3f}')
+        plt.title(f'Ground Truth')
         plt.axis('off')
         
         # Predicted mask (binary)
