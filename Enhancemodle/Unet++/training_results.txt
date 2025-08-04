@@ -1,0 +1,18 @@
+=== UNet++ Training Results ===
+Training epochs: 50
+Learning rate: 0.001
+Batch size: 8
+Deep supervision: True
+Final training loss: 0.0776
+
+=== Evaluation Metrics ===
+Mean IoU: 0.3918
+Mean Dice: 0.5450
+Mean Pixel Accuracy: 0.9844
+Precision: 0.6099
+Recall: 0.5224
+F1-Score: 0.5627
+True Positives: 58,468
+False Positives: 37,400
+True Negatives: 5,683,376
+False Negatives: 53,460

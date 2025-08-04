@@ -1,0 +1,20 @@
+=== UNet++ Training Results with Data Augmentation ===
+Training epochs: 50
+Learning rate: 0.001
+Batch size: 8
+Deep supervision: True
+Data augmentation: True
+Final training loss: 0.1000
+Best validation loss: 0.0911
+
+=== Evaluation Metrics ===
+Mean IoU: 0.2211
+Mean Dice: 0.3297
+Mean Pixel Accuracy: 0.9834
+Precision: 0.7256
+Recall: 0.2181
+F1-Score: 0.3354
+True Positives: 24,415
+False Positives: 9,235
+True Negatives: 5,711,541
+False Negatives: 87,513
