@@ -5,7 +5,10 @@ import cv2
 import torch
 import time
 from sklearn.metrics import confusion_matrix, precision_recall_fscore_support
-from unet_plus_plus_pipeline import UNetPlusPlus, compute_iou
+from unet_plus_plus_512_pipeline import DeadTreeDataset512, compute_iou, create_unet_plus_plus_512
+from torchvision import transforms
+from PIL import Image
+from sklearn.model_selection import train_test_split
 
 def compute_dice_coefficient(y_true, y_pred):
     """Compute Dice coefficient (F1 score for segmentation)"""
@@ -22,8 +25,8 @@ def compute_pixel_accuracy(y_true, y_pred):
 def compute_classification_metrics(y_true, y_pred):
     """Compute precision, recall, F1-score for dead tree class"""
     # Flatten arrays for sklearn metrics
-    y_true_flat = y_true.flatten()
-    y_pred_flat = y_pred.flatten()
+    y_true_flat = y_true.flatten().astype(int)
+    y_pred_flat = y_pred.flatten().astype(int)
     
     # Calculate confusion matrix
     tn, fp, fn, tp = confusion_matrix(y_true_flat, y_pred_flat, labels=[0, 1]).ravel()
@@ -43,7 +46,7 @@ def compute_classification_metrics(y_true, y_pred):
         'fn': fn
     }
 
-def measure_inference_time(model, test_data, device, num_runs=10):
+def measure_inference_time(model, test_loader, device, num_runs=5):
     """Measure average inference time per image"""
     model.eval()
     times = []
@@ -51,88 +54,108 @@ def measure_inference_time(model, test_data, device, num_runs=10):
     with torch.no_grad():
         for _ in range(num_runs):
             start_time = time.time()
-            for i in range(len(test_data)):
-                img = torch.tensor(test_data[i:i+1].transpose(0, 3, 1, 2), dtype=torch.float32).to(device)
-                _ = model(img)
+            for images, _ in test_loader:
+                images = images.to(device)
+                _ = model(images)
             end_time = time.time()
             times.append(end_time - start_time)
     
-    avg_time_per_image = np.mean(times) / len(test_data)
+    avg_time_per_image = np.mean(times) / len(test_loader.dataset)
     return avg_time_per_image
 
 def count_model_parameters(model):
     """Count total number of parameters"""
     return sum(p.numel() for p in model.parameters())
 
-def main():
-    """Evaluate UNet++ model performance with comprehensive metrics"""
-    print("Evaluating UNet++ Forest Segmentation Model...")
-    
-    # Load test data and predictions - regenerate since not saved
-    print("Regenerating test data and predictions...")
-    
-    # Load and split data again
-    image_files = sorted([os.path.join('USA_segmentation/NRG_images', f) for f in os.listdir('USA_segmentation/NRG_images') 
-                         if f.endswith(('.tif', '.tiff', '.png'))])
-    mask_files = sorted([os.path.join('USA_segmentation/masks', f) for f in os.listdir('USA_segmentation/masks') 
-                        if f.endswith(('.png', '.tif', '.tiff'))])
-    
-    # Split data with same random state
-    from sklearn.model_selection import train_test_split
-    train_imgs, test_imgs, train_masks, test_masks = train_test_split(
-        image_files, mask_files, train_size=0.8, random_state=42
+# Function to dynamically prepare validation data
+def prepare_validation_data(image_dir, mask_dir, test_size=0.2):
+    """Prepare validation data dynamically."""
+    print(f"Loading data from: {image_dir}")
+    image_files = [f for f in os.listdir(image_dir) if f.endswith('.png')]
+    image_paths = []
+    mask_paths = []
+    for img_file in image_files:
+        img_path = os.path.join(image_dir, img_file)
+        mask_file = img_file.replace('NRG_', 'mask_')
+        mask_path = os.path.join(mask_dir, mask_file)
+        if os.path.exists(mask_path):
+            image_paths.append(img_path)
+            mask_paths.append(mask_path)
+    if len(image_paths) == 0:
+        raise ValueError(f"No valid image-mask pairs found in {image_dir}")
+    _, val_images, _, val_masks = train_test_split(
+        image_paths, mask_paths, test_size=test_size, random_state=42
     )
-    
-    # Load test data
-    def read_image(path):
-        img = cv2.imread(path, cv2.IMREAD_UNCHANGED)
-        if img is not None and img.shape[-1] == 3:
-            img = cv2.resize(img, (256, 256))
-            return img.astype(np.float32) / 255.0
-        else:
-            raise ValueError(f"{path} is not a 3-channel image!")
+    print(f"Found {len(val_images)} validation images")
+    return val_images, val_masks
 
-    def read_mask(path):
-        mask = cv2.imread(path, cv2.IMREAD_GRAYSCALE)
-        mask = cv2.resize(mask, (256, 256), interpolation=cv2.INTER_NEAREST)
-        return (mask > 127).astype(np.uint8)
+def main():
+    """Evaluate UNet++ 512x512 model performance with comprehensive metrics"""
+    print("Evaluating UNet++ 512x512 Forest Segmentation Model...")
     
-    print('Loading test data...')
-    X_test = np.stack([read_image(p) for p in test_imgs])
-    y_test = np.stack([read_mask(p) for p in test_masks])
+    # Get the directory where this script is located
+    script_dir = os.path.dirname(os.path.abspath(__file__))
     
-    # Load model and generate predictions
+    # Device setup
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    model = UNetPlusPlus(n_channels=3, n_classes=1, deep_supervision=True).to(device)
+    print(f"Using device: {device}")
+    
+    # Data preprocessing for 512x512
+    transform = transforms.Compose([
+        transforms.Resize((512, 512)),
+        transforms.ToTensor()
+    ])
+    
+    # Create test dataset
+    try:
+        val_images, val_masks = prepare_validation_data("USA_segmentation/NRG_images", "USA_segmentation/masks")
+        test_dataset = DeadTreeDataset512(val_images, val_masks, transform)
+        test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=1, shuffle=False, num_workers=2)
+        print(f"Test samples: {len(test_dataset)}")
+    except Exception as e:
+        print(f"Error loading dataset: {e}")
+        return
+    
+    # Create model
+    model = create_unet_plus_plus_512().to(device)
     
     # Load model weights
-    model_path = 'Enhancemodle/Unet++/unet_plus_plus_model.pth'
+    model_path = os.path.join(script_dir, 'unet_plus_plus_model.pth')
     if os.path.exists(model_path):
         model.load_state_dict(torch.load(model_path, map_location=device))
-        print("Model weights loaded")
+        print("Model weights loaded successfully")
     else:
-        print("Warning: Model weights not found. Please run training first.")
+        print(f"Warning: Model weights not found at {model_path}")
+        print("Please run training first to generate model weights.")
         return
     
     # Generate predictions
     print('Generating predictions...')
     model.eval()
     predictions = []
+    ground_truths = []
     
     with torch.no_grad():
-        for i in range(len(X_test)):
-            img = torch.tensor(X_test[i:i+1].transpose(0, 3, 1, 2), dtype=torch.float32).to(device)
-            pred = model(img)
-            # For evaluation, use the finest level output (index 0)
-            if isinstance(pred, list):
-                pred = pred[0]  # Use the finest level
-            pred = pred.cpu().numpy()[0, 0]  # Remove batch and channel dimensions
-            predictions.append(pred)
+        for images, masks in test_loader:
+            images = images.to(device)
+            masks = masks.to(device)
+            
+            outputs = model(images)
+            pred = torch.sigmoid(outputs)
+            
+            # Convert to numpy
+            pred_np = pred.cpu().numpy()[0, 0]  # Remove batch and channel dimensions
+            mask_np = masks.cpu().numpy()[0, 0]
+            
+            predictions.append(pred_np)
+            ground_truths.append(mask_np)
     
     y_pred = np.array(predictions)
+    y_test = np.array(ground_truths)
     
     # Convert predictions to binary
     y_pred_bin = (y_pred > 0.5).astype(np.uint8)
+    y_test = y_test.astype(np.uint8)  # Ensure ground truth is also uint8
     
     # 1. Basic Segmentation Metrics
     print("Computing segmentation metrics...")
@@ -141,7 +164,7 @@ def main():
     pixel_accuracies = []
     
     for i in range(len(y_test)):
-        iou = compute_iou(y_test[i], y_pred_bin[i])
+        iou = compute_iou(torch.tensor(y_pred_bin[i:i+1], dtype=torch.float32), torch.tensor(y_test[i:i+1], dtype=torch.float32))
         dice = compute_dice_coefficient(y_test[i], y_pred_bin[i])
         pixel_acc = compute_pixel_accuracy(y_test[i], y_pred_bin[i])
         
@@ -164,18 +187,10 @@ def main():
     
     # 3. Efficiency Metrics
     print("Computing efficiency metrics...")
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    model = UNetPlusPlus(n_channels=3, n_classes=1, deep_supervision=True).to(device)
-    
-    # Load model weights if available
-    model_path = 'Enhancemodle/Unet++/unet_plus_plus_model.pth'
-    if os.path.exists(model_path):
-        model.load_state_dict(torch.load(model_path, map_location=device))
-        print("Model weights loaded for inference time measurement")
     
     # Measure inference time
     try:
-        inference_time = measure_inference_time(model, y_test, device)
+        inference_time = measure_inference_time(model, test_loader, device)
     except Exception as e:
         print(f"Could not measure inference time: {e}")
         inference_time = None
@@ -185,8 +200,9 @@ def main():
     
     # 4. Save comprehensive results
     print("Saving comprehensive evaluation results...")
-    with open('Enhancemodle/Unet++/comprehensive_evaluation_results.txt', 'w', encoding='utf-8') as f:
-        f.write("UNet++ Forest Segmentation Model - Comprehensive Evaluation Results\n")
+    
+    with open(os.path.join(script_dir, 'comprehensive_evaluation_results.txt'), 'w', encoding='utf-8') as f:
+        f.write("UNet++ 512x512 Forest Segmentation Model - Comprehensive Evaluation Results\n")
         f.write("=" * 80 + "\n\n")
         
         # Basic Information
@@ -195,7 +211,7 @@ def main():
         f.write(f"Number of test images: {len(y_test)}\n")
         f.write(f"Image size: {y_test.shape[1]}x{y_test.shape[2]} pixels\n")
         f.write(f"Model parameters: {num_params:,}\n")
-        f.write(f"Deep supervision: True\n")
+        f.write(f"Input channels: 3 (RGB)\n")
         if inference_time:
             f.write(f"Average inference time: {inference_time:.4f} seconds per image\n")
         f.write("\n")
@@ -258,13 +274,27 @@ def main():
         f.write("6. EFFICIENCY ANALYSIS\n")
         f.write("-" * 30 + "\n")
         f.write(f"Model Parameters: {num_params:,}\n")
+        f.write(f"Input Complexity: RGB (3 channels)\n")
+        f.write(f"Image Resolution: 512x512 pixels\n")
         if inference_time:
             f.write(f"Inference Time: {inference_time:.4f} seconds per image\n")
-            f.write(f"Real-time Performance: {'✓' if inference_time < 2.0 else '✗'} (< 2s requirement)\n")
+            f.write(f"Real-time Performance: {'✓' if inference_time < 5.0 else '✗'} (< 5s requirement for 512x512)\n")
+        f.write("\n")
+        
+        # Model Architecture Analysis
+        f.write("7. MODEL ARCHITECTURE ANALYSIS\n")
+        f.write("-" * 30 + "\n")
+        f.write("Architecture: UNet++ (Nested U-Net)\n")
+        f.write("Encoder: ResNet34 with ImageNet weights\n")
+        f.write("Decoder: 5 levels with nested skip connections\n")
+        f.write("Attention Type: scSE (Concurrent Spatial and Channel Squeeze & Excitation)\n")
+        f.write("Decoder Channels: (256, 128, 64, 32, 16)\n")
+        f.write("Batch Normalization: Enabled\n")
+        f.write("Attention Mechanisms: Enabled\n")
         f.write("\n")
         
         # Failure Analysis
-        f.write("7. FAILURE ANALYSIS\n")
+        f.write("8. FAILURE ANALYSIS\n")
         f.write("-" * 30 + "\n")
         worst_indices = np.argsort(iou_scores)[:5]
         f.write("Worst performing images (lowest IoU):\n")
@@ -273,16 +303,18 @@ def main():
         f.write("\n")
         
         # Summary
-        f.write("8. SUMMARY\n")
+        f.write("9. SUMMARY\n")
         f.write("-" * 30 + "\n")
         f.write(f"Overall Performance: {'Excellent' if mean_iou >= 0.8 else 'Good' if mean_iou >= 0.6 else 'Fair' if mean_iou >= 0.4 else 'Poor'}\n")
         f.write(f"Primary Metric (Mean IoU): {mean_iou:.4f}\n")
         f.write(f"Balanced Metric (F1-Score): {class_metrics['f1_score']:.4f}\n")
+        f.write(f"Model Innovation: UNet++ with nested skip connections\n")
+        f.write(f"Resolution Advantage: Higher resolution (512x512) for better detail preservation\n")
         if inference_time:
-            f.write(f"Efficiency: {'Satisfactory' if inference_time < 2.0 else 'Needs Improvement'}\n")
+            f.write(f"Efficiency: {'Satisfactory' if inference_time < 5.0 else 'Needs Improvement'}\n")
     
     print(f"Comprehensive evaluation completed!")
-    print(f"Results saved to: Enhancemodle/Unet++/comprehensive_evaluation_results.txt")
+    print(f"Results saved to: {os.path.join(script_dir, 'comprehensive_evaluation_results.txt')}")
     
     # Print summary to console
     print(f"\n=== EVALUATION SUMMARY ===")
@@ -298,63 +330,48 @@ def main():
     # 5. Enhanced Visualizations
     print("Generating enhanced visualizations...")
     
-    # Load test image paths
-    test_imgs_txt = 'Enhancemodle/Unet++/test_imgs.txt'
-    test_imgs = []
-    if os.path.exists(test_imgs_txt):
-        with open(test_imgs_txt, 'r') as f:
-            test_imgs = [line.strip() for line in f.readlines()]
-    
     # Create detailed visualization for first 5 images
     num_viz = min(5, len(y_test))
     
     for i in range(num_viz):
-        # Load original image if available
-        img = None
-        if i < len(test_imgs):
-            try:
-                img_path = test_imgs[i]
-                img = cv2.imread(img_path, cv2.IMREAD_UNCHANGED)
-                if img is not None:
-                    img = cv2.resize(img, (y_test.shape[2], y_test.shape[1]))
-                    img = img.astype(np.float32) / 255.0
-            except Exception as e:
-                print(f"Could not load image {img_path}: {e}")
-        
         # Create comprehensive subplot
         plt.figure(figsize=(20, 4))
         
-        # Original image
-        plt.subplot(1, 5, 1)
-        if img is not None:
-            plt.imshow(img[..., ::-1])  # BGR to RGB
+        # Original image (if available)
+        plt.subplot(1, 6, 1)
+        try:
+            # Try to load original image
+            img_path = test_dataset.image_paths[i]
+            img = Image.open(img_path).convert('RGB')
+            img_resized = img.resize((512, 512))
+            plt.imshow(img_resized)
             plt.title('Original Image')
-        else:
+        except:
             plt.text(0.5, 0.5, 'Image not available', ha='center', va='center')
             plt.title('Original Image')
         plt.axis('off')
         
         # Ground truth mask
-        plt.subplot(1, 5, 2)
+        plt.subplot(1, 6, 2)
         plt.imshow(y_test[i], cmap='gray')
         plt.title(f'Ground Truth\nIoU: {iou_scores[i]:.3f}')
         plt.axis('off')
         
         # Predicted mask (binary)
-        plt.subplot(1, 5, 3)
+        plt.subplot(1, 6, 3)
         plt.imshow(y_pred_bin[i], cmap='gray')
         plt.title(f'Prediction (Binary)\nDice: {dice_scores[i]:.3f}')
         plt.axis('off')
         
         # Predicted mask (probability)
-        plt.subplot(1, 5, 4)
+        plt.subplot(1, 6, 4)
         plt.imshow(y_pred[i], cmap='viridis')
         plt.colorbar()
         plt.title('Prediction (Probability)')
         plt.axis('off')
         
         # Error visualization
-        plt.subplot(1, 5, 5)
+        plt.subplot(1, 6, 5)
         error_map = np.zeros_like(y_test[i], dtype=np.uint8)
         error_map[np.logical_and(y_test[i] == 1, y_pred_bin[i] == 0)] = 1  # False Negative (red)
         error_map[np.logical_and(y_test[i] == 0, y_pred_bin[i] == 1)] = 2  # False Positive (blue)
@@ -378,8 +395,21 @@ def main():
         plt.title('Error Analysis\nRed=FN, Blue=FP, Green=TP')
         plt.axis('off')
         
+        # Overlay visualization
+        plt.subplot(1, 6, 6)
+        try:
+            img_array = np.array(img_resized)
+            overlay = img_array.copy()
+            overlay[y_pred_bin[i] == 1] = [255, 0, 0]  # Red overlay for predictions
+            plt.imshow(overlay)
+            plt.title('Overlay\nRed=Predicted')
+        except:
+            plt.text(0.5, 0.5, 'Overlay not available', ha='center', va='center')
+            plt.title('Overlay')
+        plt.axis('off')
+        
         plt.tight_layout()
-        plt.show()
+        plt.savefig(os.path.join(script_dir, f'visualization_sample_{i+1}.png'), dpi=300, bbox_inches='tight')
         plt.close()
     
     # Create comprehensive summary visualization
@@ -487,7 +517,7 @@ def main():
                 f'{value:.3f}', ha='center', va='bottom')
     
     plt.tight_layout()
-    plt.show()
+    plt.savefig(os.path.join(script_dir, 'comprehensive_analysis.png'), dpi=300, bbox_inches='tight')
     plt.close()
     
     # Create confusion matrix heatmap
@@ -513,11 +543,11 @@ def main():
                     fontsize=12)
     
     plt.tight_layout()
-    plt.show()
+    plt.savefig(os.path.join(script_dir, 'confusion_matrix.png'), dpi=300, bbox_inches='tight')
     plt.close()
     
     print(f"Enhanced visualizations completed!")
-    print(f"Results saved to: Enhancemodle/Unet++/comprehensive_evaluation_results.txt")
+    print(f"Results saved to: {os.path.join(script_dir, 'comprehensive_evaluation_results.txt')}")
 
 if __name__ == '__main__':
     main() 

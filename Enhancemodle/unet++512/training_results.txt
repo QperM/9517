@@ -1,0 +1,10 @@
+UNet++ 512x512 Training Results
+========================================
+Best validation loss: 0.0535
+Best mIoU: 0.3571
+Training time: 610.74 seconds
+Epochs trained: 46
+Total parameters: 26,281,332
+Image size: 512x512
+Batch size: 8
+Learning rate: 0.0001
