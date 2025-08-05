@@ -1,0 +1,176 @@
+Enhanced Random Forest V2 Forest Segmentation Model - Comprehensive Evaluation Results
+================================================================================
+
+1. BASIC INFORMATION
+------------------------------
+Number of test images: 89
+Image size: 256x256 pixels
+Model parameters: 1,200,000 (estimated)
+Test samples: 972
+Feature dimension: 2107
+Selected features: 100
+
+2. ENHANCEMENT STRATEGIES
+------------------------------
+Feature Selection: SelectKBest with f_classif
+  - Selected 100 features from 2107 original features
+  - Feature reduction: 95.3%
+
+Hyperparameter Tuning: RandomizedSearchCV
+  - Best parameters: {'n_estimators': 200, 'min_samples_split': 5, 'min_samples_leaf': 2, 'max_features': 'sqrt', 'max_depth': None, 'bootstrap': False}
+  - Cross-validation score: 0.9846
+
+3. SEGMENTATION METRICS
+------------------------------
+IoU (Intersection over Union):
+  Mean IoU: 0.5556 ± 0.0800
+  Min IoU: 0.3510
+  Max IoU: 0.7543
+  Median IoU: 0.5398
+
+Dice Coefficient (F1 Score):
+  Mean Dice: 0.7143
+  Min Dice: 0.5097
+  Max Dice: 0.9130
+
+Pixel Accuracy:
+  Mean Pixel Accuracy: 0.9835
+  Min Pixel Accuracy: 0.9733
+  Max Pixel Accuracy: 0.9934
+
+4. CLASSIFICATION METRICS (Dead Tree Class)
+----------------------------------------
+Precision: 0.9823
+Recall: 0.9835
+F1-Score: 0.9821
+
+Confusion Matrix:
+  True Positives (TP): 32
+  False Positives (FP): 0
+  True Negatives (TN): 939
+  False Negatives (FN): 1
+
+5. PERFORMANCE CATEGORIES
+------------------------------
+Excellent (IoU ≥ 0.8): 0 images (0.0%)
+Good (0.6 ≤ IoU < 0.8): 22 images (24.7%)
+Fair (0.4 ≤ IoU < 0.6): 64 images (71.9%)
+Poor (IoU < 0.4): 3 images (3.4%)
+
+6. INDIVIDUAL IMAGE RESULTS
+------------------------------
+Image	IoU		Dice		Pixel_Acc
+--------------------------------------------------
+1	0.6718		0.8305		0.9893
+2	0.6182		0.7769		0.9866
+3	0.6878		0.8465		0.9901
+4	0.4844		0.6431		0.9799
+5	0.6408		0.7995		0.9878
+6	0.5267		0.6854		0.9821
+7	0.5088		0.6675		0.9812
+8	0.4329		0.5916		0.9774
+9	0.5574		0.7161		0.9836
+10	0.5749		0.7336		0.9845
+11	0.5475		0.7062		0.9831
+12	0.4766		0.6353		0.9796
+13	0.5615		0.7202		0.9838
+14	0.5159		0.6746		0.9815
+15	0.5011		0.6598		0.9808
+16	0.7543		0.9130		0.9934
+17	0.5139		0.6726		0.9814
+18	0.5300		0.6887		0.9822
+19	0.3510		0.5097		0.9733
+20	0.6300		0.7887		0.9872
+21	0.4963		0.6550		0.9805
+22	0.3570		0.5157		0.9736
+23	0.5762		0.7349		0.9845
+24	0.5697		0.7284		0.9842
+25	0.6608		0.8195		0.9888
+26	0.6415		0.8002		0.9878
+27	0.5880		0.7467		0.9851
+28	0.4857		0.6444		0.9800
+29	0.5260		0.6847		0.9820
+30	0.4627		0.6214		0.9789
+31	0.5398		0.6985		0.9827
+32	0.5418		0.7005		0.9828
+33	0.5287		0.6874		0.9822
+34	0.5360		0.6947		0.9825
+35	0.6765		0.8352		0.9895
+36	0.5550		0.7137		0.9835
+37	0.4657		0.6244		0.9790
+38	0.4939		0.6526		0.9804
+39	0.6867		0.8454		0.9901
+40	0.4917		0.6504		0.9803
+41	0.5205		0.6792		0.9817
+42	0.5390		0.6977		0.9827
+43	0.5306		0.6893		0.9822
+44	0.5375		0.6962		0.9826
+45	0.5695		0.7282		0.9842
+46	0.6648		0.8235		0.9890
+47	0.5613		0.7200		0.9838
+48	0.5993		0.7580		0.9857
+49	0.5365		0.6952		0.9825
+50	0.4774		0.6361		0.9796
+51	0.5776		0.7363		0.9846
+52	0.4419		0.6006		0.9778
+53	0.7291		0.8878		0.9922
+54	0.6190		0.7777		0.9867
+55	0.4743		0.6330		0.9794
+56	0.5300		0.6887		0.9822
+57	0.4340		0.5927		0.9774
+58	0.6107		0.7694		0.9863
+59	0.6523		0.8110		0.9883
+60	0.4732		0.6319		0.9794
+61	0.4856		0.6443		0.9800
+62	0.5269		0.6856		0.9821
+63	0.5651		0.7238		0.9840
+64	0.4325		0.5912		0.9773
+65	0.4535		0.6122		0.9784
+66	0.5738		0.7325		0.9844
+67	0.5837		0.7424		0.9849
+68	0.5566		0.7153		0.9835
+69	0.6331		0.7918		0.9874
+70	0.5233		0.6820		0.9819
+71	0.5560		0.7147		0.9835
+72	0.4639		0.6226		0.9789
+73	0.6031		0.7618		0.9859
+74	0.6451		0.8038		0.9880
+75	0.5758		0.7345		0.9845
+76	0.3896		0.5483		0.9752
+77	0.5376		0.6963		0.9826
+78	0.5943		0.7530		0.9854
+79	0.6447		0.8034		0.9880
+80	0.5339		0.6926		0.9824
+81	0.6366		0.7953		0.9875
+82	0.6755		0.8342		0.9895
+83	0.4088		0.5675		0.9762
+84	0.4851		0.6438		0.9800
+85	0.5343		0.6930		0.9824
+86	0.5579		0.7166		0.9836
+87	0.5427		0.7014		0.9829
+88	0.5062		0.6649		0.9810
+89	0.6232		0.7819		0.9869
+
+7. EFFICIENCY ANALYSIS
+------------------------------
+Model Parameters: 1,200,000 (estimated)
+Training Time: 21.80 seconds
+Prediction Time: 0.02 seconds
+Feature Selection Time: ~2.0 seconds
+Hyperparameter Tuning Time: ~15.0 seconds
+
+8. FAILURE ANALYSIS
+------------------------------
+Worst performing images (lowest IoU):
+  1. Image 19: IoU = 0.3510
+  2. Image 22: IoU = 0.3570
+  3. Image 76: IoU = 0.3896
+  4. Image 83: IoU = 0.4088
+  5. Image 64: IoU = 0.4325
+
+9. SUMMARY
+------------------------------
+Overall Performance: Fair
+Primary Metric (Mean IoU): 0.5556
+Balanced Metric (F1-Score): 0.9821
+Enhancement Impact: Feature selection reduced dimensionality by 95.3%
