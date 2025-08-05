@@ -423,20 +423,6 @@ def main():
         plt.imshow(error_img)
         plt.title('Error Analysis\nRed=FN, Blue=FP, Green=TP')
         plt.axis('off')
-        
-        # NIR channel visualization
-        plt.subplot(1, 7, 7)
-        if nrg_img is not None:
-            plt.imshow(nrg_img[..., 0], cmap='gray')  # Show NIR channel
-            plt.title('NIR Channel')
-        else:
-            plt.text(0.5, 0.5, 'NIR not available', ha='center', va='center')
-            plt.title('NIR Channel')
-        plt.axis('off')
-        
-        plt.tight_layout()
-        plt.show()
-        plt.close()
     
     # Create comprehensive summary visualization
     plt.figure(figsize=(16, 12))
