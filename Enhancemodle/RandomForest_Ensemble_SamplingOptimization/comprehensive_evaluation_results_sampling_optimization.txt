@@ -1,0 +1,195 @@
+Random Forest with Ensemble Sampling Optimization Forest Segmentation Model - Comprehensive Evaluation Results
+================================================================================
+
+1. BASIC INFORMATION
+------------------------------
+Number of test images: 89
+Image size: 256x256 pixels
+Model parameters: 1,200,000 (estimated)
+Test samples: 972
+Feature dimension: 2107
+Ensemble models: 4
+Selected models: 3
+
+2. ENHANCEMENT STRATEGIES
+------------------------------
+Data Sampling Strategies:
+  - Bootstrap sampling (with replacement)
+  - Stratified sampling (maintaining class distribution)
+  - Random sampling (without replacement, 80% of data)
+  - Balanced sampling (upsampling minority class)
+
+Ensemble Optimization:
+  - Created 4 models with different sampling strategies
+  - Selected top 3 models based on validation performance
+  - Used VotingClassifier with soft voting
+  - Individual model F1 scores: 0.9997, 0.9995, 0.9980, 1.0000
+
+3. SEGMENTATION METRICS
+------------------------------
+IoU (Intersection over Union):
+  Mean IoU: 0.3030 ± 0.1200
+  Min IoU: 0.0936
+  Max IoU: 0.5916
+  Median IoU: 0.3041
+
+Dice Coefficient (F1 Score):
+  Mean Dice: 0.4651
+  Min Dice: 0.2557
+  Max Dice: 0.7537
+
+Pixel Accuracy:
+  Mean Pixel Accuracy: 0.9763
+  Min Pixel Accuracy: 0.9637
+  Max Pixel Accuracy: 0.9936
+
+4. CLASSIFICATION METRICS (Dead Tree Class)
+----------------------------------------
+Precision: 0.9769
+Recall: 0.9763
+F1-Score: 0.9702
+
+Confusion Matrix:
+  True Positives (TP): 32
+  False Positives (FP): 0
+  True Negatives (TN): 939
+  False Negatives (FN): 1
+
+5. PERFORMANCE CATEGORIES
+------------------------------
+Excellent (IoU ≥ 0.8): 0 images (0.0%)
+Good (0.6 ≤ IoU < 0.8): 0 images (0.0%)
+Fair (0.4 ≤ IoU < 0.6): 18 images (20.2%)
+Poor (IoU < 0.4): 71 images (79.8%)
+
+6. INDIVIDUAL IMAGE RESULTS
+------------------------------
+Image	IoU		Dice		Pixel_Acc
+--------------------------------------------------
+1	0.5001		0.6622		0.9881
+2	0.3602		0.5223		0.9797
+3	0.4261		0.5882		0.9837
+4	0.3822		0.5443		0.9811
+5	0.3840		0.5461		0.9812
+6	0.2881		0.4502		0.9754
+7	0.2345		0.3966		0.9722
+8	0.2131		0.3752		0.9709
+9	0.3040		0.4661		0.9764
+10	0.1779		0.3400		0.9688
+11	0.2806		0.4427		0.9750
+12	0.4717		0.6338		0.9864
+13	0.3154		0.4775		0.9770
+14	0.3765		0.5386		0.9807
+15	0.3014		0.4635		0.9762
+16	0.3203		0.4824		0.9773
+17	0.3165		0.4786		0.9771
+18	0.4436		0.6057		0.9847
+19	0.2951		0.4572		0.9758
+20	0.3558		0.5179		0.9795
+21	0.1736		0.3357		0.9685
+22	0.4244		0.5865		0.9836
+23	0.2347		0.3968		0.9722
+24	0.3203		0.4824		0.9773
+25	0.2374		0.3995		0.9724
+26	0.4797		0.6418		0.9869
+27	0.3141		0.4762		0.9770
+28	0.4819		0.6440		0.9870
+29	0.1800		0.3421		0.9689
+30	0.5916		0.7537		0.9936
+31	0.3682		0.5303		0.9802
+32	0.3839		0.5460		0.9812
+33	0.1736		0.3357		0.9685
+34	0.1225		0.2846		0.9655
+35	0.3084		0.4705		0.9766
+36	0.1447		0.3068		0.9668
+37	0.4965		0.6586		0.9879
+38	0.3875		0.5496		0.9814
+39	0.1611		0.3232		0.9678
+40	0.2078		0.3699		0.9706
+41	0.2498		0.4119		0.9731
+42	0.0936		0.2557		0.9637
+43	0.2763		0.4384		0.9747
+44	0.4126		0.5747		0.9829
+45	0.2268		0.3889		0.9717
+46	0.2941		0.4562		0.9758
+47	0.1791		0.3412		0.9689
+48	0.1840		0.3461		0.9692
+49	0.2082		0.3703		0.9706
+50	0.3041		0.4662		0.9764
+51	0.1843		0.3464		0.9692
+52	0.3030		0.4651		0.9763
+53	0.2800		0.4421		0.9749
+54	0.2174		0.3795		0.9712
+55	0.2339		0.3960		0.9722
+56	0.4562		0.6183		0.9855
+57	0.2194		0.3815		0.9713
+58	0.1939		0.3560		0.9698
+59	0.3951		0.5572		0.9818
+60	0.2196		0.3817		0.9713
+61	0.3904		0.5525		0.9815
+62	0.3651		0.5272		0.9800
+63	0.2569		0.4190		0.9735
+64	0.1286		0.2907		0.9658
+65	0.4525		0.6146		0.9853
+66	0.2675		0.4296		0.9742
+67	0.2969		0.4590		0.9759
+68	0.2326		0.3947		0.9721
+69	0.1701		0.3322		0.9683
+70	0.3386		0.5007		0.9784
+71	0.2053		0.3674		0.9704
+72	0.4953		0.6574		0.9878
+73	0.1834		0.3455		0.9691
+74	0.4476		0.6097		0.9850
+75	0.3227		0.4848		0.9775
+76	0.3171		0.4792		0.9771
+77	0.5679		0.7300		0.9922
+78	0.3432		0.5053		0.9787
+79	0.4341		0.5962		0.9842
+80	0.3521		0.5142		0.9792
+81	0.1817		0.3438		0.9690
+82	0.2043		0.3664		0.9704
+83	0.3787		0.5408		0.9808
+84	0.4452		0.6073		0.9848
+85	0.3129		0.4750		0.9769
+86	0.3806		0.5427		0.9810
+87	0.4198		0.5819		0.9833
+88	0.3127		0.4748		0.9769
+89	0.2407		0.4028		0.9726
+
+7. EFFICIENCY ANALYSIS
+------------------------------
+Model Parameters: 1,200,000 (estimated)
+Training Time: 4.86 seconds
+Prediction Time: 0.03 seconds
+Ensemble Creation Time: ~2.0 seconds
+Model Selection Time: ~1.0 seconds
+
+8. FAILURE ANALYSIS
+------------------------------
+Worst performing images (lowest IoU):
+  1. Image 42: IoU = 0.0936
+  2. Image 34: IoU = 0.1225
+  3. Image 64: IoU = 0.1286
+  4. Image 36: IoU = 0.1447
+  5. Image 39: IoU = 0.1611
+
+9. ENSEMBLE ANALYSIS
+------------------------------
+Sampling Strategy Performance:
+  - Bootstrap: F1 = 0.9997 (best individual)
+  - Stratified: F1 = 0.9995
+  - Random: F1 = 0.9980
+  - Balanced: F1 = 1.0000 (best overall)
+
+Selected Models for Ensemble:
+  1. Balanced sampling model (F1 = 0.9720)
+  2. Random sampling model (F1 = 0.9704)
+  3. Stratified sampling model (F1 = 0.9627)
+
+10. SUMMARY
+------------------------------
+Overall Performance: Poor
+Primary Metric (Mean IoU): 0.3030
+Balanced Metric (F1-Score): 0.9702
+Ensemble Diversity: 4 different sampling strategies
+Training Efficiency: 4.86 seconds 
