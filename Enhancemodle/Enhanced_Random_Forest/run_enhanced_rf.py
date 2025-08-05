@@ -92,8 +92,9 @@ def main():
         
         # 6. Save enhanced model
         print("\n5. Saving enhanced model...")
-        os.makedirs("results", exist_ok=True)
-        model_path = "results/enhanced_random_forest_model.pkl"
+        # Save model in the same directory as the script
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        model_path = os.path.join(script_dir, "enhanced_random_forest_model.pkl")
         enhanced_rf.save_model(model_path)
         print(f"Enhanced model saved to: {model_path}")
         

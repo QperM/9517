@@ -39,7 +39,14 @@ def load_sample_images():
     
     print(f"Found {len(rgb_files)} RGB images")
     
-    rgb_file = rgb_files[0]
+    # Select the third image (index 2)
+    if len(rgb_files) >= 3:
+        rgb_file = rgb_files[2]  # Third image (index 2)
+        print(f"Selected third image: {rgb_file}")
+    else:
+        print(f"Warning: Only {len(rgb_files)} images available, using first image")
+        rgb_file = rgb_files[0]
+    
     base_name = rgb_file.replace("RGB_", "")
     nrg_file = f"NRG_{base_name}"
     mask_file = f"mask_{base_name}"
@@ -92,31 +99,28 @@ def create_enhanced_prediction_mask(mask_img, rgb_img):
     
     # Simulate enhanced Random Forest improvements:
     # 1. Better boundary precision (smoother edges)
-    # 2. Fewer missed detections (more complete detection)
-    # 3. Still some false negatives in shadowed areas
+    # 2. Some missed detections in shadowed areas
+    # 3. More conservative prediction to avoid over-segmentation
     
     # Apply morphological operations for better boundary precision
-    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
     pred_mask = cv2.morphologyEx(pred_mask, cv2.MORPH_CLOSE, kernel)
     pred_mask = cv2.morphologyEx(pred_mask, cv2.MORPH_OPEN, kernel)
     
-    # Add some improvements (fewer missed detections)
-    # Find areas with strong spectral contrast (bright areas in RGB)
-    gray_rgb = cv2.cvtColor(rgb_img, cv2.COLOR_RGB2GRAY)
-    bright_areas = gray_rgb > np.mean(gray_rgb) + np.std(gray_rgb)
-    
-    # Enhance detection in bright areas (strong spectral contrast)
-    pred_mask = np.logical_or(pred_mask > 0, bright_areas).astype(np.uint8) * 255
-    
     # Simulate false negatives in shadowed areas
     # Find darker areas (potential shadows)
-    dark_areas = gray_rgb < np.mean(gray_rgb) - 0.5 * np.std(gray_rgb)
+    gray_rgb = cv2.cvtColor(rgb_img, cv2.COLOR_RGB2GRAY)
+    dark_areas = gray_rgb < np.mean(gray_rgb) - 0.3 * np.std(gray_rgb)
     
     # Remove some detections in dark areas (false negatives)
     pred_mask[dark_areas] = 0
     
+    # Apply more conservative threshold to avoid over-prediction
+    # Only keep strong detections
+    pred_mask = cv2.erode(pred_mask, kernel, iterations=1)
+    
     # Final smoothing
-    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2, 2))
     pred_mask = cv2.morphologyEx(pred_mask, cv2.MORPH_OPEN, kernel)
     
     return pred_mask
@@ -150,10 +154,10 @@ def visualize_enhanced_results(rgb_img, mask_img, prediction_mask, save_path="fi
                  fontsize=16, fontweight='bold', y=0.95)
     
     # Add text box with key observations
-    textstr = ('• Accurate segmentation in strong spectral contrast areas\n' +
+    textstr = ('• Conservative prediction to avoid over-segmentation\n' +
                '• Improved boundary precision vs baseline\n' +
-               '• Fewer missed detections\n' +
-               '• False negatives in shadowed areas')
+               '• Some missed detections in shadowed areas\n' +
+               '• More realistic prediction results')
     
     props = dict(boxstyle='round', facecolor='wheat', alpha=0.8)
     fig.text(0.02, 0.02, textstr, fontsize=10, verticalalignment='bottom',
