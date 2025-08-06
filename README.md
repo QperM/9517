@@ -26,7 +26,6 @@ This project is a dead tree segmentation system based on deep learning and machi
 │   ├── RandomForest_Ensemble_SamplingOptimization/  # Ensemble sampling optimization
 │   ├── RandomForest_FeatureSelection_HyperparamTuning/  # Feature selection hyperparameter tuning
 │   ├── Unet++/                       # UNet++ model
-│   ├── unet++512/                    # 512-channel UNet++
 │   ├── Unet++_augmentation/          # Data augmentation UNet++
 │   ├── Unet_ASPP/                    # UNet+ASPP model
 │   └── Unet_NIR_GAF/                 # UNet+NIR+GAF model
@@ -37,6 +36,36 @@ This project is a dead tree segmentation system based on deep learning and machi
 ├── UNet_vs_UNetPlusPlus.ipynb       # Model comparison analysis
 └── README.md                         # Project documentation
 ```
+## How to Run the Models
+For Non-Random Forest Models (Baseline & Enhanced UNet Variants)
+​Applies to:​​
+
+All models in Baseline/
+UNet variants in Enhancemodle/ (except Random Forest folders)
+Includes: Unet++/, Unet++_augmentation/, Unet_ASPP/, Unet_NIR_GAF/
+​Steps:​​
+
+Navigate to model directory: cd path/to/[folder_name]
+Train the model: python *_pipeline.py (saves model/weights in current directory)
+Evaluate: python evaluate.py (shows plots with plt.show; doesn't save images)
+For Enhanced Random Forest Models
+​For Enhanced_Random_Forest/:​​
+
+Navigate: cd Enhancemodle/Enhanced_Random_Forest
+Train: python run_enhanced_rf.py (saves model locally)
+Generate evaluation report: python generate_evaluation_report.py (creates text report)
+Generate visualizations: python generate_picture.py (saves example images)
+​For RandomForest_Ensemble_SamplingOptimization/:​​
+
+Navigate: cd Enhancemodle/RandomForest_Ensemble_SamplingOptimization
+Train: python random_forest_ensemble_sampling_optimization.py (saves model locally)
+Generate report: python generate_evaluation_report_ensemble_sampling_optimization.py (creates text report)
+​For RandomForest_FeatureSelection_HyperparamTuning/:​​
+
+Navigate: cd Enhancemodle/RandomForest_FeatureSelection_HyperparamTuning
+Train: python random_forest_feature_selection_hyperparam_tuning.py (saves model locally)
+Generate report: python generate_evaluation_report_feature_selection_hyperparam_tuning.py (creates text report)
+
 
 ## Model Performance Comparison
 
