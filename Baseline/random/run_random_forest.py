@@ -82,8 +82,7 @@ def main():
         
         # 6. Save model
         print("\n5. Saving model...")
-        os.makedirs("results", exist_ok=True)
-        model_path = "results/random_forest_model.pkl"
+        model_path = os.path.join(os.path.dirname(__file__), "random_forest_model.pkl")
         rf_model.save_model(model_path)
         print(f"Model saved to: {model_path}")
         
