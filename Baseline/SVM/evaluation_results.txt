@@ -6,7 +6,7 @@ SVM Segmentation Model - Comprehensive Evaluation Results
 Number of test images: 444
 Image size: 256x256 pixels
 Model parameters: 0
-Average inference time: 0.0010 seconds per image
+Average inference time: 0.0009 seconds per image
 
 2. SEGMENTATION METRICS
 ------------------------------

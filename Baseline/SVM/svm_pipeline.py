@@ -2,12 +2,13 @@ import os
 import numpy as np
 import cv2
 from sklearn.model_selection import train_test_split
-from sklearn.svm import SVC
-from sklearn.preprocessing import StandardScaler
+from sklearn.svm import LinearSVC
+from sklearn.calibration import CalibratedClassifierCV
 from sklearn.metrics import confusion_matrix
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 import joblib
+import time
 
 # Parameters
 IMAGE_DIR = 'USA_segmentation/NRG_images'
@@ -15,8 +16,8 @@ MASK_DIR = 'USA_segmentation/masks'
 SAVE_DIR = 'Baseline/SVM'
 IMG_SIZE = 256
 TRAIN_SPLIT = 0.8
-EPOCHS = 50  # For consistency with CNN/UNet, but not used in SVM
-LEARNING_RATE = 0.001  # For consistency with CNN/UNet, but not used in SVM
+FEATURE_SAMPLE_RATIO = 0.01  # Sample 10% of pixels for training
+RANDOM_STATE = 42
 
 os.makedirs(SAVE_DIR, exist_ok=True)
 
@@ -36,94 +37,55 @@ def read_mask(path):
     mask = cv2.resize(mask, (IMG_SIZE, IMG_SIZE), interpolation=cv2.INTER_NEAREST)
     return (mask > 127).astype(np.uint8)
 
-def extract_features(image):
-    """Extract features from image for SVM classification"""
-    # Convert to grayscale for feature extraction
-    gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
-    
-    # Extract multiple features
+def extract_features(img):
+    """Extract features from image for SVM"""
     features = []
-    
-    # 1. Color features (mean and std of each channel)
-    for i in range(3):
-        features.extend([np.mean(image[:, :, i]), np.std(image[:, :, i])])
-    
-    # 2. Texture features using Local Binary Patterns
-    from skimage.feature import local_binary_pattern
-    lbp = local_binary_pattern(gray, P=8, R=1, method='uniform')
-    features.extend([np.mean(lbp), np.std(lbp)])
-    
-    # 3. Edge features
-    edges = cv2.Canny(gray, 50, 150)
-    features.extend([np.mean(edges), np.std(edges)])
-    
-    # 4. Histogram features
-    hist = cv2.calcHist([gray], [0], None, [256], [0, 256])
-    hist = hist.flatten() / hist.sum()  # Normalize
-    # Use first 10 bins as features
-    features.extend(hist[:10])
-    
-    # 5. Statistical features
-    features.extend([np.mean(gray), np.std(gray), np.var(gray)])
-    
-    # 6. Gradient features
-    grad_x = cv2.Sobel(gray, cv2.CV_64F, 1, 0, ksize=3)
-    grad_y = cv2.Sobel(gray, cv2.CV_64F, 0, 1, ksize=3)
-    grad_magnitude = np.sqrt(grad_x**2 + grad_y**2)
-    features.extend([np.mean(grad_magnitude), np.std(grad_magnitude)])
-    
-    return np.array(features)
+    # RGB channels
+    features.extend([img[:, :, 0].flatten(), img[:, :, 1].flatten(), img[:, :, 2].flatten()])
+    # Grayscale
+    gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
+    features.append(gray.flatten())
+    # HSV channels
+    hsv = cv2.cvtColor(img, cv2.COLOR_RGB2HSV)
+    features.extend([hsv[:, :, 0].flatten(), hsv[:, :, 1].flatten(), hsv[:, :, 2].flatten()])
+    # Edge features using Sobel
+    sobelx = cv2.Sobel(gray, cv2.CV_64F, 1, 0, ksize=3)
+    sobely = cv2.Sobel(gray, cv2.CV_64F, 0, 1, ksize=3)
+    gradient_magnitude = np.sqrt(sobelx**2 + sobely**2)
+    features.append(gradient_magnitude.flatten())
+    # Texture features (std in 3x3 neighborhood)
+    kernel_3x3 = np.ones((3, 3), np.float32) / 9
+    mean_img = cv2.filter2D(gray, -1, kernel_3x3)
+    mean_sq_img = cv2.filter2D(gray**2, -1, kernel_3x3)
+    var_img = mean_sq_img - mean_img**2
+    std_img = np.sqrt(np.maximum(var_img, 0))
+    features.append(std_img.flatten())
+    # Color statistics in local neighborhoods
+    kernel_5x5 = np.ones((5, 5), np.float32) / 25
+    for channel in range(3):
+        mean_channel = cv2.filter2D(img[:, :, channel], -1, kernel_5x5)
+        features.append(mean_channel.flatten())
+        mean_sq_channel = cv2.filter2D(img[:, :, channel]**2, -1, kernel_5x5)
+        var_channel = mean_sq_channel - mean_channel**2
+        std_channel = np.sqrt(np.maximum(var_channel, 0))
+        features.append(std_channel.flatten())
+    feature_matrix = np.column_stack(features)
+    return feature_matrix
 
-def extract_pixel_features(image, mask):
-    """Extract features for each pixel in the image - simplified version"""
-    features_list = []
-    labels_list = []
-    
-    # Sample pixels in a grid pattern (every 16th pixel to reduce computation)
-    step = 16
-    patch_size = 16
-    
-    for i in range(0, IMG_SIZE, step):
-        for j in range(0, IMG_SIZE, step):
-            # Extract local patch
-            i_start = max(0, i - patch_size//2)
-            i_end = min(IMG_SIZE, i + patch_size//2)
-            j_start = max(0, j - patch_size//2)
-            j_end = min(IMG_SIZE, j + patch_size//2)
-            
-            patch = image[i_start:i_end, j_start:j_end]
-            patch_mask = mask[i_start:i_end, j_start:j_end]
-            
-            # Get the most common label in this patch
-            patch_labels = patch_mask.flatten()
-            most_common_label = np.bincount(patch_labels).argmax()
-            
-            # Extract features from patch
-            features = []
-            
-            # 1. Color features (mean of each channel)
-            for c in range(3):
-                features.append(np.mean(patch[:, :, c]))
-            
-            # 2. Grayscale features
-            gray_patch = cv2.cvtColor(patch, cv2.COLOR_RGB2GRAY)
-            features.extend([np.mean(gray_patch), np.std(gray_patch)])
-            
-            # 3. Edge features
-            edges = cv2.Canny(gray_patch, 50, 150)
-            features.extend([np.mean(edges), np.std(edges)])
-            
-            # 4. Position features
-            features.extend([i/IMG_SIZE, j/IMG_SIZE])
-            
-            features_list.append(features)
-            labels_list.append(most_common_label)
-    
-    return np.array(features_list), np.array(labels_list)
+def sample_pixels(features, labels, sample_ratio=0.1):
+    n_pixels = features.shape[0]
+    n_samples = int(n_pixels * sample_ratio)
+    from sklearn.model_selection import train_test_split
+    indices = np.arange(n_pixels)
+    sampled_indices, _ = train_test_split(
+        indices,
+        train_size=sample_ratio,
+        stratify=labels,
+        random_state=RANDOM_STATE
+    )
+    return features[sampled_indices], labels[sampled_indices]
 
-# IoU calculation
 def compute_iou(y_true, y_pred):
-    """Compute Intersection over Union"""
     intersection = np.logical_and(y_true, y_pred).sum()
     union = np.logical_or(y_true, y_pred).sum()
     if union == 0:
@@ -131,7 +93,6 @@ def compute_iou(y_true, y_pred):
     return intersection / union
 
 def compute_dice_coefficient(y_true, y_pred):
-    """Compute Dice coefficient (F1 score for segmentation)"""
     intersection = np.logical_and(y_true, y_pred).sum()
     union = y_true.sum() + y_pred.sum()
     if union == 0:
@@ -139,23 +100,15 @@ def compute_dice_coefficient(y_true, y_pred):
     return (2 * intersection) / union
 
 def compute_pixel_accuracy(y_true, y_pred):
-    """Compute pixel accuracy"""
     return np.mean(y_true == y_pred)
 
 def compute_classification_metrics(y_true, y_pred):
-    """Compute precision, recall, F1-score for dead tree class"""
-    # Flatten arrays for sklearn metrics
     y_true_flat = y_true.flatten()
     y_pred_flat = y_pred.flatten()
-    
-    # Calculate confusion matrix
     tn, fp, fn, tp = confusion_matrix(y_true_flat, y_pred_flat, labels=[0, 1]).ravel()
-    
-    # Calculate metrics
     precision = tp / (tp + fp) if (tp + fp) > 0 else 0
     recall = tp / (tp + fn) if (tp + fn) > 0 else 0
     f1_score = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0
-    
     return {
         'precision': precision,
         'recall': recall,
@@ -166,195 +119,125 @@ def compute_classification_metrics(y_true, y_pred):
         'fn': fn
     }
 
-def predict_image_svm(model, scaler, image):
-    """Predict segmentation mask for an image using SVM - simplified version"""
-    mask = np.zeros((IMG_SIZE, IMG_SIZE), dtype=np.uint8)
-    
-    # Use same grid-based approach as training
-    step = 16
-    patch_size = 16
-    
-    for i in range(0, IMG_SIZE, step):
-        for j in range(0, IMG_SIZE, step):
-            # Extract local patch
-            i_start = max(0, i - patch_size//2)
-            i_end = min(IMG_SIZE, i + patch_size//2)
-            j_start = max(0, j - patch_size//2)
-            j_end = min(IMG_SIZE, j + patch_size//2)
-            
-            patch = image[i_start:i_end, j_start:j_end]
-            
-            # Extract features from patch
-            features = []
-            
-            # 1. Color features (mean of each channel)
-            for c in range(3):
-                features.append(np.mean(patch[:, :, c]))
-            
-            # 2. Grayscale features
-            gray_patch = cv2.cvtColor(patch, cv2.COLOR_RGB2GRAY)
-            features.extend([np.mean(gray_patch), np.std(gray_patch)])
-            
-            # 3. Edge features
-            edges = cv2.Canny(gray_patch, 50, 150)
-            features.extend([np.mean(edges), np.std(edges)])
-            
-            # 4. Position features
-            features.extend([i/IMG_SIZE, j/IMG_SIZE])
-            
-            # Predict
-            features_scaled = scaler.transform([features])
-            prediction = model.predict(features_scaled)[0]
-            
-            # Fill the corresponding region in mask
-            mask[i:i+step, j:j+step] = prediction
-    
-    return mask
-
 def main():
     print("Starting SVM Forest Segmentation Pipeline...")
-    
     # 1. Load and split data
     print("Loading image files...")
-    image_files = sorted([os.path.join(IMAGE_DIR, f) for f in os.listdir(IMAGE_DIR) 
+    image_files = sorted([os.path.join(IMAGE_DIR, f) for f in os.listdir(IMAGE_DIR)
                          if f.endswith(('.tif', '.tiff', '.png'))])
-    mask_files = sorted([os.path.join(MASK_DIR, f) for f in os.listdir(MASK_DIR) 
+    mask_files = sorted([os.path.join(MASK_DIR, f) for f in os.listdir(MASK_DIR)
                         if f.endswith(('.png', '.tif', '.tiff'))])
-    
+    print(f"Found {len(image_files)} images and {len(mask_files)} masks.")
     assert len(image_files) == len(mask_files), 'Number of images and masks do not match!'
-    
-    # Split data
     train_imgs, test_imgs, train_masks, test_masks = train_test_split(
-        image_files, mask_files, train_size=TRAIN_SPLIT, random_state=42
+        image_files, mask_files, train_size=TRAIN_SPLIT, random_state=RANDOM_STATE
     )
-    
-    # Save test image paths
     with open(os.path.join(SAVE_DIR, 'test_imgs.txt'), 'w') as f:
         for p in test_imgs:
             f.write(p + '\n')
-    
-    # 2. Load data and extract features
-    print('Loading training data and extracting features...')
-    all_features = []
-    all_labels = []
-    
-    for img_path, mask_path in tqdm(zip(train_imgs, train_masks), total=len(train_imgs)):
-        image = read_image(img_path)
+    print(f"Training set: {len(train_imgs)} images, Test set: {len(test_imgs)} images.")
+
+    # 2. Load and process training data
+    print('Loading and processing training data...')
+    X_train_features = []
+    y_train_labels = []
+    for img_path, mask_path in tqdm(zip(train_imgs, train_masks), total=len(train_imgs), desc="Processing Training Data"):
+        img = read_image(img_path)
         mask = read_mask(mask_path)
-        
-        # Extract pixel-level features
-        features, labels = extract_pixel_features(image, mask)
-        all_features.append(features)
-        all_labels.append(labels)
-    
-    # Combine all features
-    X_train = np.vstack(all_features)
-    y_train = np.hstack(all_labels)
-    
-    print('Loading test data...')
-    X_test = np.stack([read_image(p) for p in tqdm(test_imgs)])
-    y_test = np.stack([read_mask(p) for p in tqdm(test_masks)])
-    
-    print(f'Training features shape: {X_train.shape}')
-    print(f'Training labels shape: {y_train.shape}')
-    print(f'Test set shape: {X_test.shape}, {y_test.shape}')
-    
-    # 3. Preprocess features
-    print('Preprocessing features...')
-    scaler = StandardScaler()
-    X_train_scaled = scaler.fit_transform(X_train)
-    
-    # 4. Train SVM model
-    print('Training SVM model...')
-    # Use a subset for training to avoid memory issues
-    if len(X_train_scaled) > 100000:
-        indices = np.random.choice(len(X_train_scaled), 100000, replace=False)
-        X_train_subset = X_train_scaled[indices]
-        y_train_subset = y_train[indices]
-    else:
-        X_train_subset = X_train_scaled
-        y_train_subset = y_train
-    
-    # Train SVM with RBF kernel
-    svm_model = SVC(kernel='rbf', C=1.0, gamma='scale', random_state=42, probability=True)
-    svm_model.fit(X_train_subset, y_train_subset)
-    
-    # 5. Save model
-    joblib.dump(svm_model, os.path.join(SAVE_DIR, 'svm_model.pkl'))
-    joblib.dump(scaler, os.path.join(SAVE_DIR, 'svm_scaler.pkl'))
+        features = extract_features(img)
+        labels = mask.flatten()
+        features, labels = sample_pixels(features, labels, sample_ratio=FEATURE_SAMPLE_RATIO)
+        X_train_features.append(features)
+        y_train_labels.append(labels)
+    X_train = np.vstack(X_train_features)
+    y_train = np.hstack(y_train_labels)
+    print(f"Final X_train shape: {X_train.shape}, y_train shape: {y_train.shape}")
+
+    # Remove PCA and use all 15 features
+    print("Using all 15 features without PCA")
+
+    # 3. Train SVM model
+    print('Training SVM model with LinearSVC and probability calibration...')
+    base_svm = LinearSVC(class_weight='balanced', random_state=RANDOM_STATE, max_iter=10000)
+    svm = CalibratedClassifierCV(base_svm)  # Add probability support
+    start_time = time.time()
+
+    # Add logging to track training progress
+    print(f"Starting SVM training with {X_train.shape[0]} samples and {X_train.shape[1]} features...")
+    try:
+        svm.fit(X_train, y_train)
+        train_time = time.time() - start_time
+        print(f'Training completed in {train_time:.2f} seconds.')
+    except Exception as e:
+        print(f"Error during training: {e}")
+        return
+
+    joblib.dump(svm, os.path.join(SAVE_DIR, 'svm_model.pkl'))
     print('Model saved!')
-    
-    # 6. Enhanced Evaluation
-    print('Evaluating model with comprehensive metrics...')
-    predictions = []
-    
-    for i in tqdm(range(len(X_test)), desc='Generating predictions'):
-        pred_mask = predict_image_svm(svm_model, scaler, X_test[i])
-        predictions.append(pred_mask)
-    
-    y_pred = np.array(predictions)
-    
-    # Calculate comprehensive metrics
-    y_pred_binary = y_pred.astype(np.uint8)
-    iou_scores = []
-    dice_scores = []
-    pixel_accuracies = []
-    
-    for i in range(len(y_test)):
-        iou = compute_iou(y_test[i], y_pred_binary[i])
-        dice = compute_dice_coefficient(y_test[i], y_pred_binary[i])
-        pixel_acc = compute_pixel_accuracy(y_test[i], y_pred_binary[i])
-        
-        iou_scores.append(iou)
-        dice_scores.append(dice)
-        pixel_accuracies.append(pixel_acc)
-    
-    mean_iou = np.mean(iou_scores)
-    mean_dice = np.mean(dice_scores)
-    mean_pixel_acc = np.mean(pixel_accuracies)
-    
-    # Calculate classification metrics
-    y_test_all = y_test.flatten()
-    y_pred_all = y_pred_binary.flatten()
-    class_metrics = compute_classification_metrics(y_test_all, y_pred_all)
-    
-    print(f'Mean IoU: {mean_iou:.4f}')
-    print(f'Mean Dice: {mean_dice:.4f}')
-    print(f'Precision: {class_metrics["precision"]:.4f}')
-    print(f'Recall: {class_metrics["recall"]:.4f}')
-    print(f'F1-Score: {class_metrics["f1_score"]:.4f}')
-    
-    # Save comprehensive results
-    with open(os.path.join(SAVE_DIR, 'training_results.txt'), 'w') as f:
-        f.write(f'=== SVM Training Results ===\n')
-        f.write(f'Training epochs: {EPOCHS}\n')
-        f.write(f'Learning rate: {LEARNING_RATE}\n')
-        f.write(f'Kernel: RBF\n')
-        f.write(f'C parameter: 1.0\n')
-        f.write(f'Training samples: {len(X_train_subset):,}\n\n')
-        
-        f.write(f'=== Evaluation Metrics ===\n')
-        f.write(f'Mean IoU: {mean_iou:.4f}\n')
-        f.write(f'Mean Dice: {mean_dice:.4f}\n')
-        f.write(f'Mean Pixel Accuracy: {mean_pixel_acc:.4f}\n')
-        f.write(f'Precision: {class_metrics["precision"]:.4f}\n')
-        f.write(f'Recall: {class_metrics["recall"]:.4f}\n')
-        f.write(f'F1-Score: {class_metrics["f1_score"]:.4f}\n')
-        f.write(f'True Positives: {class_metrics["tp"]:,}\n')
-        f.write(f'False Positives: {class_metrics["fp"]:,}\n')
-        f.write(f'True Negatives: {class_metrics["tn"]:,}\n')
-        f.write(f'False Negatives: {class_metrics["fn"]:,}\n')
-    
-    # Plot training progress (for consistency with CNN/UNet)
-    plt.figure(figsize=(10, 6))
-    plt.plot([1, 2, 3, 4, 5], [0.1, 0.08, 0.06, 0.05, 0.04])  # Dummy training loss
-    plt.title('Training Progress (SVM)')
-    plt.xlabel('Training Step')
-    plt.ylabel('Loss (Dummy)')
-    plt.savefig(os.path.join(SAVE_DIR, 'training_loss.png'))
-    plt.close()
-    
-    print('Training completed!')
+
+    # 4. Load and process test data
+    print('Loading and processing test data...')
+    X_test_features = []
+    y_test_labels = []
+    for img_path, mask_path in tqdm(zip(test_imgs, test_masks), total=len(test_imgs), desc="Processing Test Data"):
+        img = read_image(img_path)
+        mask = read_mask(mask_path)
+        features = extract_features(img)
+        X_test_features.append(features)
+        y_test_labels.append(mask.flatten())
+    X_test = np.vstack(X_test_features)
+    y_test = np.hstack(y_test_labels)
+    print(f"Final X_test shape: {X_test.shape}, y_test shape: {y_test.shape}")
+
+    # 5. Predict and evaluate
+    print('Predicting on test data...')
+    start_time = time.time()
+    try:
+        y_pred_prob = svm.predict_proba(X_test)[:, 1]
+        y_pred = (y_pred_prob > 0.5).astype(np.uint8)
+        inference_time = (time.time() - start_time) / len(X_test)
+        print(f'Average inference time per pixel: {inference_time:.6f} seconds')
+    except Exception as e:
+        print(f"Error during prediction: {e}")
+        return
+
+    # 6. Metrics
+    try:
+        iou = compute_iou(y_test, y_pred)
+        dice = compute_dice_coefficient(y_test, y_pred)
+        pixel_acc = compute_pixel_accuracy(y_test, y_pred)
+        class_metrics = compute_classification_metrics(y_test, y_pred)
+        print(f'IoU: {iou:.4f}')
+        print(f'Dice: {dice:.4f}')
+        print(f'Pixel Accuracy: {pixel_acc:.4f}')
+        print(f'Precision: {class_metrics["precision"]:.4f}')
+        print(f'Recall: {class_metrics["recall"]:.4f}')
+        print(f'F1-Score: {class_metrics["f1_score"]:.4f}')
+    except Exception as e:
+        print(f"Error during metrics computation: {e}")
+        return
+
+    # 7. Save results
+    try:
+        with open(os.path.join(SAVE_DIR, 'training_results.txt'), 'w') as f:
+            f.write(f'=== SVM Training Results ===\n')
+            f.write(f'Training samples: {X_train.shape[0]}\n')
+            f.write(f'Training time: {train_time:.2f} seconds\n')
+            f.write(f'Average inference time per pixel: {inference_time:.6f} seconds\n')
+            f.write(f'IoU: {iou:.4f}\n')
+            f.write(f'Dice: {dice:.4f}\n')
+            f.write(f'Pixel Accuracy: {pixel_acc:.4f}\n')
+            f.write(f'Precision: {class_metrics["precision"]:.4f}\n')
+            f.write(f'Recall: {class_metrics["recall"]:.4f}\n')
+            f.write(f'F1-Score: {class_metrics["f1_score"]:.4f}\n')
+            f.write(f'True Positives: {class_metrics["tp"]:,}\n')
+            f.write(f'False Positives: {class_metrics["fp"]:,}\n')
+            f.write(f'True Negatives: {class_metrics["tn"]:,}\n')
+            f.write(f'False Negatives: {class_metrics["fn"]:,}\n')
+        print('Results saved!')
+    except Exception as e:
+        print(f"Error during saving results: {e}")
+        return
 
 if __name__ == '__main__':
-    main() 
+    main()
