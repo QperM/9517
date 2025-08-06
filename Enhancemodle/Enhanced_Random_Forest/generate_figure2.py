@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Generate Figure 2: Dead Tree Segmentation Visualization
+Generate : Dead Tree Segmentation Visualization
 Simplified script to create visualization without complex training
 """
 
@@ -125,9 +125,9 @@ def create_enhanced_prediction_mask(mask_img, rgb_img):
     
     return pred_mask
 
-def visualize_enhanced_results(rgb_img, mask_img, prediction_mask, save_path="figure2_enhanced_results.png"):
+def visualize_enhanced_results(rgb_img, mask_img, prediction_mask, save_path="enhanced_results.png"):
     """
-    Generate Figure 2: Enhanced Random Forest qualitative results
+    Generate: Enhanced Random Forest qualitative results
     Shows improved boundary precision and fewer missed detections
     """
     # Create figure with 3 subplots
@@ -149,7 +149,7 @@ def visualize_enhanced_results(rgb_img, mask_img, prediction_mask, save_path="fi
     axes[2].axis('off')
     
     # Add overall title with paper description
-    fig.suptitle('Figure 2: Enhanced Random Forest Qualitative Results\n' + 
+    fig.suptitle('Enhanced Random Forest Qualitative Results\n' + 
                  'Improved boundary precision and fewer missed detections', 
                  fontsize=16, fontweight='bold', y=0.95)
     
@@ -168,13 +168,13 @@ def visualize_enhanced_results(rgb_img, mask_img, prediction_mask, save_path="fi
     
     # Save figure directly to current directory
     plt.savefig(save_path, dpi=300, bbox_inches='tight')
-    print(f"Figure 2 (enhanced results) saved to: {save_path}")
+    print(f"Enhanced results saved to: {save_path}")
     
     plt.show()
 
-def visualize_patch_comparison(rgb_img, mask_img, prediction_mask, patch_size=128, save_path="figure2_patch_comparison.png"):
+def visualize_patch_comparison(rgb_img, mask_img, prediction_mask, patch_size=128, save_path="patch_comparison.png"):
     """
-    Generate Figure 2 with a specific patch comparison (128x128 region)
+    Generate patch comparison visualization
     
     Args:
         rgb_img: Original RGB image
@@ -217,21 +217,21 @@ def visualize_patch_comparison(rgb_img, mask_img, prediction_mask, patch_size=12
     axes[2].axis('off')
     
     # Add overall title
-    fig.suptitle('Figure 2: Patch Comparison (128×128 Region)', fontsize=16, fontweight='bold', y=0.95)
+    fig.suptitle('Patch Comparison (128×128 Region)', fontsize=16, fontweight='bold', y=0.95)
     
     # Adjust layout and save
     plt.tight_layout()
     
     # Save figure directly to current directory
     plt.savefig(save_path, dpi=300, bbox_inches='tight')
-    print(f"Figure 2 (patch comparison) saved to: {save_path}")
+    print(f"Patch comparison saved to: {save_path}")
     
     plt.show()
 
 def main():
-    """Main function to generate Figure 2"""
+    """Main function to generate visualization"""
     print("=" * 60)
-    print("Generating Figure 2: Dead Tree Segmentation Visualization")
+    print("Generating Dead Tree Segmentation Visualization")
     print("=" * 60)
     
     print("Script is starting...")
@@ -252,11 +252,11 @@ def main():
         print("\n2. Creating enhanced prediction mask...")
         prediction_mask = create_enhanced_prediction_mask(mask_img, rgb_img)
         
-        # Generate Figure 2 with enhanced results
-        print("\n3. Generating Figure 2 (enhanced results)...")
+        # Generate visualization with enhanced results
+        print("\n3. Generating visualization (enhanced results)...")
         visualize_enhanced_results(rgb_img, mask_img, prediction_mask)
         
-        print("\nFigure 2 generation completed!")
+        print("\nVisualization generation completed!")
         print("=" * 60)
         
     except Exception as e:
