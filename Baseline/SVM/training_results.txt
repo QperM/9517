@@ -1,0 +1,14 @@
+=== SVM Training Results ===
+Training samples: 232525
+Training time: 4.18 seconds
+Average inference time per pixel: 0.000000 seconds
+IoU: 0.0285
+Dice: 0.0555
+Pixel Accuracy: 0.9809
+Precision: 0.5438
+Recall: 0.0292
+F1-Score: 0.0555
+True Positives: 3,272
+False Positives: 2,745
+True Negatives: 5,718,031
+False Negatives: 108,656

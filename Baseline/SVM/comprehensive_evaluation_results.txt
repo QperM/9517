@@ -1,0 +1,24 @@
+SVM Segmentation Model - Comprehensive Evaluation Results
+================================================================================
+
+1. BASIC INFORMATION
+------------------------------
+Number of test images: 89
+Image size: 256x256 pixels
+Average inference time: 0.0009 seconds per image
+
+2. SEGMENTATION METRICS
+------------------------------
+Mean IoU: 0.0476
+Mean Dice: 0.0793
+Mean Pixel Accuracy: 0.9809
+
+3. CLASSIFICATION METRICS
+------------------------------
+Precision: 0.5438
+Recall: 0.0292
+F1-Score: 0.0555
+TP: 3272
+FP: 2745
+TN: 5718031
+FN: 108656
